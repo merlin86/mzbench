@@ -1,1 +1,2 @@
-ebin
+apps/*/ebin
+rel/mzbench
