@@ -1,2 +1,3 @@
 apps/*/ebin
 rel/mzbench
+deps
