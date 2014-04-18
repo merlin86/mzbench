@@ -3,19 +3,18 @@
 -export([connect/2, disconnect/1, send_message/1, receive_message/1]).
 -include("../deps/amqp_client/include/amqp_client.hrl").
 
-initial_state() -> {}.
+initial_state() -> {nil, nil}.
 
-connect(_State, Address) ->
+connect(_, Address) ->
     {ok, Target} = amqp_uri:parse(Address),
     {ok, Connection} = amqp_connection:start(Target),
     {ok, Channel} = amqp_connection:open_channel(Connection),
-    {Connection, Channel}.
+    {nil, {Connection, Channel}}.
 
-disconnect(State) ->
-    {Channel, Connection} = State,
+disconnect({Connection, Channel}) ->
     amqp_channel:close(Channel),
     amqp_connection:close(Connection),
-    {}.
+    {nil, nil}.
 
 send_message(State) ->
     {_, Channel} = State,
@@ -27,7 +26,7 @@ send_message(State) ->
     BasicPublish = #'basic.publish'{exchange = X, routing_key = RoutingKey},
     ok = amqp_channel:call(Channel, BasicPublish, _MsgPayload = #amqp_msg{payload = Payload}),
 
-    State.
+    {nil, State}.
 
 receive_message(State) ->
     {_, Channel} = State,
@@ -37,4 +36,4 @@ receive_message(State) ->
     Get = #'basic.get'{queue = Q, no_ack = true},
     {_, _} = amqp_channel:call(Channel, Get),
 
-    State.
+    {nil, State}.
