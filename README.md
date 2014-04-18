@@ -18,7 +18,7 @@ some worker-specific functions.
 ```
 Used by worker script interpreter to initialize worker-specific state
 
-Any worker-specific function foo/N must have the following type:
+Any worker-specific function `foo/N` must have the following type:
 ```
 -spec foo(state(), ... N - 1 terms ...) -> {result(), state()}.
 ```
