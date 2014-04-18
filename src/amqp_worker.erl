@@ -1,46 +1,40 @@
 -module(amqp_worker).
--export([start/1]).
--export([read_message/0]).
+-export([initial_state/0]).
+-export([connect/2, disconnect/1, send_message/1, receive_message/1]).
 -include("../deps/amqp_client/include/amqp_client.hrl").
 
-start(Address) ->
+initial_state() -> {}.
+
+connect(_State, Address) ->
     {ok, Target} = amqp_uri:parse(Address),
-    loop(Target, nil).
-
-loop(Target, Connection) ->
-    receive
-        connect ->
-            io:format("Connecting ~n"),
-            {ok, NewConnection} = amqp_connection:start(Target),
-            loop(Target, NewConnection);
-        disconnect ->
-            io:format("Disconnecting ~n"),
-            amqp_connection:close(Connection),
-            loop(Target, nil);
-        publish ->
-            io:format("Publishing ~n"),
-            send_message(Connection, <<"testexchange">>, <<"">>, <<"foobar">>),
-            loop(Target, Connection);
-        _ ->
-            io:format("Unknown~n"),
-            loop(Target, Connection)
-    end.
-
-send_message(Connection, X, RoutingKey, Payload) ->
+    {ok, Connection} = amqp_connection:start(Target),
     {ok, Channel} = amqp_connection:open_channel(Connection),
-    io:format("basic.publish setup~n"),
-    BasicPublish = #'basic.publish'{exchange = X, routing_key = RoutingKey},
+    {Connection, Channel}.
 
-    io:format("amqp_channel:cast~n"),
+disconnect(State) ->
+    {Channel, Connection} = State,
+    amqp_channel:close(Channel),
+    amqp_connection:close(Connection),
+    {}.
+
+send_message(State) ->
+    {_, Channel} = State,
+
+    X = <<"testexchange">>,
+    RoutingKey = <<"">>,
+    Payload = <<"foobar">>,
+
+    BasicPublish = #'basic.publish'{exchange = X, routing_key = RoutingKey},
     ok = amqp_channel:call(Channel, BasicPublish, _MsgPayload = #amqp_msg{payload = Payload}),
 
-    amqp_channel:close(Channel).
+    State.
 
-read_message() ->
-    {ok, Connection} = amqp_connection:start(#amqp_params_network{}),
-    {ok, Channel} = amqp_connection:open_channel(Connection),
-    Get = #'basic.get'{queue = <<"testqueue">>},
-    {#'basic.get_ok'{}, Content} = amqp_channel:call(Channel, Get),
-    #'basic.get_empty'{} = amqp_channel:call(Channel, Get),
-    io:format("Content ~s~n", Content),
-    amqp_channel:call(Channel, #'channel.close'{}).
+receive_message(State) ->
+    {_, Channel} = State,
+
+    Q = <<"testqueue">>,
+
+    Get = #'basic.get'{queue = Q, no_ack = true},
+    {_, _} = amqp_channel:call(Channel, Get),
+
+    State.
