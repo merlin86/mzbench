@@ -22,10 +22,16 @@ test-unit: all
 test-ct: all
 	$(REBAR) ct skip_deps=true
 
-check: test-unit test-ct
+check: test-unit test-ct dialyzer
 
 clean:
 	$(REBAR) clean
 
 distclean: clean
-	rm -rf ./deps
+	rm -rf ./deps .mzbench.plt
+
+.mzbench.plt:
+	        - dialyzer --output_plt .mzbench.plt --build_plt --apps erts kernel stdlib eunit crypto -r deps
+
+dialyzer: .mzbench.plt
+	        dialyzer --plt .mzbench.plt --src apps/mzbench/src -I apps/mzbench/src -I deps

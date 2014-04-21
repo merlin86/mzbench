@@ -2,20 +2,19 @@
 
 -export([run_worker_script/3]).
 
--type state() :: term().
--type value() :: term().
--type expr() :: tuple() | value().
--type spec() :: [tuple()].
+-include("types.hrl").
 
 %% Spec is supposed to contain worker id, launch timestamp
 %% and possibly some way to notify parent.
 %% Feel free to add when necessary.
--spec run_worker_script(spec(), [expr()], module()) -> {ok, state()}.
+-spec run_worker_script(term(), [script_expr()], module())
+    -> {ok, worker_state()}.
 run_worker_script(_Spec, Script, WorkerModule) ->
     {_, WorkerResultState} = eval_expr(Script, WorkerModule:initial_state(), WorkerModule),
     {ok, WorkerResultState}.
 
--spec eval_expr(expr(), state(), module()) -> {value(), state()}.
+-spec eval_expr(script_expr(), worker_state(), module())
+    -> {script_value(), worker_state()}.
 eval_expr(ExprTuple, State, WorkerModule) when is_tuple(ExprTuple) ->
     eval_function(tuple_to_list(ExprTuple), State, WorkerModule);
 eval_expr(ExprList, State, WorkerModule) when is_list(ExprList) ->
@@ -31,7 +30,8 @@ eval_expr(Value, State, _) -> {Value, State}.
 %% (worker_script_stdlib or something like that).
 %% This way eval_functions will be concerned with just evaluating
 %% function parameters and dispatching.
--spec eval_function([expr()], state(), module()) -> {value(), state()}.
+-spec eval_function([script_expr()], worker_state(), module())
+    -> {script_value(), worker_state()}.
 eval_function([loop, LoopSpec, Body], State, WorkerModule) ->
   {Rate, rps} = proplists:get_value(rate, LoopSpec, {undefined, rps}),
   {Time, ms} = proplists:get_value(time, LoopSpec, {undefined, ms}),
