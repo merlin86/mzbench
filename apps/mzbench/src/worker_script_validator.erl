@@ -2,10 +2,10 @@
 
 -export([validate_worker_script/2]).
 
--type expr() :: term().
--type validation_result() :: ok | {invalid_script, [string()]}.
+-include("types.hrl").
 
--spec validate_worker_script([expr()], module()) -> validation_result().
+-spec validate_worker_script([script_expr()], module())
+    -> script_validation_result().
 validate_worker_script(Script, WorkerModule) ->
     WorkerFns = WorkerModule:module_info(exports),
     Errors = lists:flatmap(fun(Expr) ->
@@ -17,7 +17,7 @@ validate_worker_script(Script, WorkerModule) ->
         _ -> {invalid_script, Errors}
     end.
 
--spec validate_expr(expr(), [tuple()]) -> [string()].
+-spec validate_expr(script_expr(), [tuple()]) -> [string()].
 validate_expr(ExprTuple, WorkerFns) when is_tuple(ExprTuple) ->
     case tuple_to_list(ExprTuple) of
         [] -> ["Empty instruction."];
@@ -38,7 +38,7 @@ validate_expr(ExprTuple, WorkerFns) when is_tuple(ExprTuple) ->
     end;
 validate_expr(_Value, _WorkerFns) -> [].
 
--spec validate_loopspec([tuple()]) -> [string()].
+-spec validate_loopspec(script_loopspec()) -> [string()].
 validate_loopspec(_LoopSpec) ->
     % TODO
     [].
