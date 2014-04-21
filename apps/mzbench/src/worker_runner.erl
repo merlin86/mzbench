@@ -7,6 +7,9 @@
 start_link(Spec, Script, WorkerModule) ->
     {ok, proc_lib:spawn_link(?MODULE, run_worker_script, [Spec, Script, WorkerModule])}.
 
+start_link(Spec, Script, WorkerModule) ->
+    {ok, proc_lib:spawn_link(?MODULE, run_worker_script, [Spec, Script, WorkerModule])}.
+
 %% Spec is supposed to contain worker id, launch timestamp
 %% and possibly some way to notify parent.
 %% Feel free to add when necessary.
