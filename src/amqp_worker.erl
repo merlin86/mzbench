@@ -1,6 +1,6 @@
 -module(amqp_worker).
 -export([initial_state/0]).
--export([connect/2, disconnect/1, send_message/1, receive_message/1]).
+-export([connect/2, disconnect/1, send_message/4, receive_message/2]).
 -include("../deps/amqp_client/include/amqp_client.hrl").
 
 initial_state() -> {nil, nil}.
@@ -14,24 +14,18 @@ connect(_, Address) ->
 disconnect({Connection, Channel}) ->
     amqp_channel:close(Channel),
     amqp_connection:close(Connection),
-    {nil, nil}.
+    {nil, initial_state()}.
 
-send_message(State) ->
+send_message(State, X, RoutingKey, Payload) ->
     {_, Channel} = State,
-
-    X = <<"testexchange">>,
-    RoutingKey = <<"">>,
-    Payload = <<"foobar">>,
 
     BasicPublish = #'basic.publish'{exchange = X, routing_key = RoutingKey},
     ok = amqp_channel:call(Channel, BasicPublish, _MsgPayload = #amqp_msg{payload = Payload}),
 
     {nil, State}.
 
-receive_message(State) ->
+receive_message(State, Q) ->
     {_, Channel} = State,
-
-    Q = <<"testqueue">>,
 
     Get = #'basic.get'{queue = Q, no_ack = true},
     {_, _} = amqp_channel:call(Channel, Get),
