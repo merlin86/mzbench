@@ -1,7 +1,8 @@
 -module(amqp_worker).
 -export([initial_state/0]).
 -export([connect/2, disconnect/1, send_message/4, receive_message/2]).
--include("../deps/amqp_client/include/amqp_client.hrl").
+
+-include_lib("amqp_client/include/amqp_client.hrl").
 
 initial_state() -> {nil, nil}.
 
