@@ -10,5 +10,8 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    {ok, { {one_for_one, 5, 10}, []} }.
+    {ok, { {one_for_one, 5, 10},
+    [
+        {workers, {mzbench_worker_sup, start_link, []}, permanent, 5000, supervisor, [mzbench_worker_sup]}
+    ]} }.
 

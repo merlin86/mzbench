@@ -3,3 +3,4 @@ rel/mzbench
 deps
 *.beam
 .rebar
+.eunit

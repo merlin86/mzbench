@@ -1,8 +1,11 @@
 -module(worker_runner).
 
--export([run_worker_script/3]).
+-export([start_link/3, run_worker_script/3]).
 
 -include("types.hrl").
+
+start_link(Spec, Script, WorkerModule) ->
+    {ok, proc_lib:spawn_link(?MODULE, run_worker_script, [Spec, Script, WorkerModule])}.
 
 %% Spec is supposed to contain worker id, launch timestamp
 %% and possibly some way to notify parent.
