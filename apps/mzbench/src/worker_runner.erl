@@ -7,16 +7,15 @@
 start_link(Spec, Script, WorkerModule) ->
     {ok, proc_lib:spawn_link(?MODULE, run_worker_script, [Spec, Script, WorkerModule])}.
 
-start_link(Spec, Script, WorkerModule) ->
-    {ok, proc_lib:spawn_link(?MODULE, run_worker_script, [Spec, Script, WorkerModule])}.
-
 %% Spec is supposed to contain worker id, launch timestamp
 %% and possibly some way to notify parent.
 %% Feel free to add when necessary.
 -spec run_worker_script(term(), [script_expr()], module())
     -> {ok, worker_state()}.
 run_worker_script(_Spec, Script, WorkerModule) ->
+    lager:info("Running script."),
     {_, WorkerResultState} = eval_expr(Script, WorkerModule:initial_state(), WorkerModule),
+    lager:info("Running script complete, final state is ~p.", [WorkerResultState]),
     {ok, WorkerResultState}.
 
 -spec eval_expr(script_expr(), worker_state(), module())

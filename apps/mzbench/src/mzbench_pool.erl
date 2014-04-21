@@ -59,7 +59,7 @@ handle_cast(Msg, State) ->
 handle_info({'DOWN', Ref, _, Pid, _Reason}, State = #s{workers = Workers, name = Name}) ->
     case lists:delete({Pid, Ref}, Workers) of
         [] ->
-            lager:info("Pool ~p: All workers has finished", [Name]),
+            lager:info("Pool ~p: All workers have finished", [Name]),
             {stop, normal, State#s{workers = []}};
         NewWorkers ->
             {noreply, State#s{workers = NewWorkers}}

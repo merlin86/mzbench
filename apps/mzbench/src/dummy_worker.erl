@@ -7,4 +7,6 @@
 initial_state() -> "".
 
 -spec print(string(), string()) -> {nil, string()}.
-print(State, Line) -> {nil, State ++ Line}.
+print(State, Line) ->
+    lager:info("Appending ~p", [Line]),
+    {nil, State ++ Line}.

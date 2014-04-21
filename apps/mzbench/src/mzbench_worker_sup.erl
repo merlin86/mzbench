@@ -18,6 +18,7 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 start_worker(Spec, Script, WorkerModule) ->
+    lager:info("Starting worker child"),
     supervisor:start_child(?MODULE, [Spec, Script, WorkerModule]).
 
 %%%===================================================================
