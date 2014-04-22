@@ -11,7 +11,7 @@ start_link(ScriptFileName) ->
 
 init([ScriptFileName]) ->
     lager:info("Script filename: ~p~n", [ScriptFileName]),
-    {ok, Script} = file:consult(ScriptFileName),
+    {ok, [Script]} = file:consult(ScriptFileName),
     Pools = extract_pools(Script),
     lager:info("Extracted pools: ~p~n", [Pools]),
     WorkerSupSpec = {workers,
@@ -21,23 +21,29 @@ init([ScriptFileName]) ->
             supervisor,
             [mzbench_worker_sup]},
     {ok, {{one_for_one, 5, 10},
-          [WorkerSupSpec | lists:map(fun start_pool/1, Pools)]
+          [WorkerSupSpec | lists:map(fun make_pool_child_spec/1, Pools)]
          }}.
 
-extract_pools(_Script) ->
-    % TODO: unhardcode
-    [{pool1,
-      [{loop, [{time, {3, min}},
-               {rate, {1, rps}}],
-        [{print, "FOO"}]}],
-      dummy_worker,
-      2},
-     {pool2,
-      [{print, "OHAI"}, {print, "BAR"}],
-      dummy_worker,
-      3}].
+extract_pools(Script) ->
+    enumerate_pools(lists:map(fun parse_pool/1, Script)).
 
-start_pool({Name, Script, WorkerModule, PoolSize}) ->
+parse_pool({pool, PoolSpec, WorkerScript}) ->
+    {WorkerScript,
+     proplists:get_value(worker_type, PoolSpec),
+     proplists:get_value(size, PoolSpec, 1)}.
+
+enumerate_pools(Xs) ->
+    lists:zipwith(
+      fun(Number, {Script, Worker, Size}) ->
+              {list_to_atom("pool" ++ integer_to_list(Number)),
+               Script,
+               Worker,
+               Size}
+      end,
+      lists:seq(1, length(Xs)),
+      Xs).
+
+make_pool_child_spec({Name, Script, WorkerModule, PoolSize}) ->
     PoolOpts = [{size, PoolSize},
                 {worker, WorkerModule}],
     {Name,

@@ -4,13 +4,15 @@
 
 -export([start/2, stop/1]).
 
-start(_StartType, _) ->
-    % TODO: unhardcode
-    mzbench_sup:start_link("../../benchmarks/script1.erl");
-start(_, Args) ->
-    lager:error("Args: ~p~n", [Args]),
-    lager:error("Usage: make run ./path-to-script"),
-    shutdown.
+start(_, _) ->
+    Args = init:get_plain_arguments(),
+    case Args of
+        ["console", ScriptFileName] ->
+            mzbench_sup:start_link(ScriptFileName);
+        _ ->
+            lager:error(" Usage: ERL_FLAGS=path-to-script make run
+                          Path is relative to rel/mzbench/bin")
+    end.
 
 stop(_State) ->
     ok.
