@@ -69,7 +69,7 @@ make_pool_child_spec({Name, Script, WorkerModule, PoolSize}) ->
     {Name,
      {mzbench_pool,
       start_link,
-      [pool_name, PoolOpts, Script]},
+      [Name, PoolOpts, Script]},
      temporary,
      5000,
      worker,
