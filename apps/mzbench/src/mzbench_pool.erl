@@ -33,7 +33,7 @@ stop(Name) ->
 init([Name, PoolOpts, Script]) ->
     lager:info("Pool ~p: Starting...", [Name]),
     Size = proplists:get_value(size, PoolOpts, undefined),
-    WorkerModule = proplists:get_value(worker, PoolOpts, undefined),
+    WorkerModule = proplists:get_value(worker_type, PoolOpts, undefined),
     WorkerOpts = proplists:get_value(worker_opts, PoolOpts, undefined),
     Workers = start_workers(Size, WorkerOpts, Script, WorkerModule, []),
     lager:info("Pool ~p: started (~p workers)", [Name, Size]),

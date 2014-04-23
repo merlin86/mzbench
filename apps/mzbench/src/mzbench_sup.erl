@@ -46,26 +46,23 @@ extract_pools(Script) ->
     enumerate_pools(lists:map(fun parse_pool/1, Script)).
 
 -spec parse_pool({pool, [script_expr()], [script_expr()]}) -> pool().
-parse_pool({pool, PoolSpec, WorkerScript}) ->
+parse_pool({pool, PoolOpts, WorkerScript}) ->
     {literals:convert(WorkerScript),
-     proplists:get_value(worker_type, PoolSpec),
-     proplists:get_value(size, PoolSpec, 1)}.
+     PoolOpts}.
 
 -spec enumerate_pools([pool()]) -> [named_pool()].
 enumerate_pools(Xs) ->
     lists:zipwith(
-      fun(Number, {Script, Worker, Size}) ->
+      fun(Number, {Script, PoolOpts}) ->
               {list_to_atom("pool" ++ integer_to_list(Number)),
                Script,
-               Worker,
-               Size}
+               PoolOpts}
       end,
       lists:seq(1, length(Xs)),
       Xs).
 
-make_pool_child_spec({Name, Script, WorkerModule, PoolSize}) ->
-    PoolOpts = [{size, PoolSize},
-                {worker, WorkerModule}],
+-spec make_pool_child_spec(named_pool()) -> supervisor:child_spec().
+make_pool_child_spec({Name, Script, PoolOpts}) ->
     {Name,
      {mzbench_pool,
       start_link,
@@ -76,7 +73,9 @@ make_pool_child_spec({Name, Script, WorkerModule, PoolSize}) ->
      [mzbench_pool]}.
 
 -spec validate_pool(named_pool()) -> [string()].
-validate_pool({PoolName, Script, Worker, Size}) ->
+validate_pool({PoolName, Script, PoolOpts}) ->
+    Worker = proplists:get_value(worker_type, PoolOpts),
+    Size = proplists:get_value(size, PoolOpts),
     lists:map(
       fun(Msg) -> atom_to_list(PoolName) ++ ": " ++ Msg end,
       case module_exists(Worker) of
