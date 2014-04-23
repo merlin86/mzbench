@@ -1,6 +1,7 @@
 -module(amqp_worker).
 -export([initial_state/0]).
--export([connect/2, disconnect/1, send_message/4, receive_message/2]).
+-export([connect/2, disconnect/1, send_message/4, receive_message/2, autoreceive/2]).
+-export([consumer/1]).
 
 -include_lib("amqp_client/include/amqp_client.hrl").
 
@@ -32,3 +33,35 @@ receive_message(State, Q) ->
     {_, _} = amqp_channel:call(Channel, Get),
 
     {nil, State}.
+
+autoreceive(State, Q) ->
+    {_, Channel} = State,
+    Consumer = spawn(amqp_worker, consumer, [Channel]),
+
+    Sub = #'basic.consume'{queue = Q},
+    #'basic.consume_ok'{consumer_tag = _} = amqp_channel:subscribe(Channel, Sub, Consumer),
+
+    {Consumer, State}.
+
+%% Internal functions
+consumer(Channel) ->
+    receive
+        %% This is the first message received
+        #'basic.consume_ok'{} ->
+            consumer(Channel);
+
+        %% This is received when the subscription is cancelled
+        #'basic.cancel_ok'{} ->
+            ok;
+
+        %% A delivery
+        {#'basic.deliver'{delivery_tag = Tag}, _} ->
+            %% Do something with the message payload
+            %% (some work here)
+
+            %% Ack the message
+            amqp_channel:cast(Channel, #'basic.ack'{delivery_tag = Tag}),
+
+            %% Loop
+            consumer(Channel)
+    end.
