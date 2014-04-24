@@ -1,6 +1,7 @@
 -module(amqp_worker).
 -export([initial_state/0]).
--export([connect/2, disconnect/1, send_message/4, receive_message/2, autoreceive/2]).
+-export([connect/2, disconnect/1, send_message/4, receive_message/2, autoreceive/2,
+    declare/4]).
 -export([consumer/1]).
 
 -include_lib("amqp_client/include/amqp_client.hrl").
@@ -9,7 +10,9 @@
         connection = undefined,
         channel = undefined,
         consumer_pid = undefined,
-        subscription_tag = undefined}).
+        subscription_tag = undefined,
+        queue = undefined,
+        exchange = undefined}).
 
 initial_state() -> #s{}.
 
@@ -19,16 +22,45 @@ connect(_, Address) ->
     {ok, Channel} = amqp_connection:open_channel(Connection),
     {nil, #s{connection = Connection, channel = Channel}}.
 
-disconnect(#s{connection = Connection, channel = Channel, consumer_pid = Consumer, subscription_tag = Tag}) ->
+disconnect(#s{connection = Connection, channel = Channel,
+        consumer_pid = Consumer, subscription_tag = Tag,
+        queue = Queue, exchange = Exchange}) ->
     case Consumer of
         undefined ->
             ok;
         _ ->
             amqp_channel:call(Channel, #'basic.cancel'{consumer_tag = Tag})
     end,
+    case Queue of
+        undefined ->
+            ok;
+        _ ->
+            DeleteQ = #'queue.delete'{queue = Queue},
+            #'queue.delete_ok'{} = amqp_channel:call(Channel, DeleteQ)
+    end,
+    case Exchange of
+        undefined ->
+            ok;
+        _ ->
+            DeleteX = #'exchange.delete'{exchange = Exchange},
+            #'exchange.delete_ok'{} = amqp_channel:call(Channel, DeleteX)
+    end,
     amqp_channel:close(Channel),
     amqp_connection:close(Connection),
     {nil, initial_state()}.
+
+declare(State = #s{channel = Channel}, Q, X, RoutingKey) ->
+    DeclareX = #'exchange.declare'{exchange = X},
+    #'exchange.declare_ok'{} = amqp_channel:call(Channel, DeclareX),
+    DeclareQ = #'queue.declare'{queue = Q},
+    #'queue.declare_ok'{} = amqp_channel:call(Channel, DeclareQ),
+
+    Binding = #'queue.bind'{queue = Q,
+        exchange    = X,
+        routing_key = RoutingKey},
+    #'queue.bind_ok'{} = amqp_channel:call(Channel, Binding),
+
+    {nil, State#s{queue = Q, exchange = X}}.
 
 %% TODO investigate failures
 send_message(State = #s{channel = Channel}, X, RoutingKey, Payload) ->
