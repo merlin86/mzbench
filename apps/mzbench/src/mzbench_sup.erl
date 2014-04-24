@@ -40,7 +40,6 @@ start_link(ScriptFileName) ->
         {ok, Ts, _} ->
             {ok, [AST]} = erl_parse:parse_exprs(Ts),
             Script = erl_parse:normalise(markup_ast(AST)),
-%%%            lager:info("Got AST: ~p~n", [erl_parse:normalise(markup_ast(AST))]),
             Pools = extract_pools(Script),
             lager:info("Extracted pools: ~p~n", [Pools]),
 
