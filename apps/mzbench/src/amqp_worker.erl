@@ -5,43 +5,47 @@
 
 -include_lib("amqp_client/include/amqp_client.hrl").
 
-initial_state() -> {nil, nil}.
+-record(s, {
+        connection = undefined,
+        channel = undefined,
+        consumer_pid = undefined,
+        subscription_tag = undefined}).
+
+initial_state() -> #s{}.
 
 connect(_, Address) ->
     {ok, Target} = amqp_uri:parse(Address),
     {ok, Connection} = amqp_connection:start(Target),
     {ok, Channel} = amqp_connection:open_channel(Connection),
-    {nil, {Connection, Channel}}.
+    {nil, #s{connection = Connection, channel = Channel}}.
 
-disconnect({Connection, Channel}) ->
+disconnect(#s{connection = Connection, channel = Channel, consumer_pid = Consumer, subscription_tag = Tag}) ->
+    case Consumer of
+        undefined ->
+            ok;
+        _ ->
+            amqp_channel:call(Channel, #'basic.cancel'{consumer_tag = Tag})
+    end,
     amqp_channel:close(Channel),
     amqp_connection:close(Connection),
     {nil, initial_state()}.
 
-send_message(State, X, RoutingKey, Payload) ->
-    {_, Channel} = State,
-
+%% TODO investigate failures
+send_message(State = #s{channel = Channel}, X, RoutingKey, Payload) ->
     BasicPublish = #'basic.publish'{exchange = X, routing_key = RoutingKey},
     ok = amqp_channel:call(Channel, BasicPublish, _MsgPayload = #amqp_msg{payload = Payload}),
-
     {nil, State}.
 
-receive_message(State, Q) ->
-    {_, Channel} = State,
-
+receive_message(State = #s{channel = Channel}, Q) ->
     Get = #'basic.get'{queue = Q, no_ack = true},
     {_, _} = amqp_channel:call(Channel, Get),
-
     {nil, State}.
 
-autoreceive(State, Q) ->
-    {_, Channel} = State,
-    Consumer = spawn(amqp_worker, consumer, [Channel]),
-
+autoreceive(State = #s{channel = Channel}, Q) ->
+    Consumer = spawn_link(amqp_worker, consumer, [Channel]),
     Sub = #'basic.consume'{queue = Q},
-    #'basic.consume_ok'{consumer_tag = _} = amqp_channel:subscribe(Channel, Sub, Consumer),
-
-    {Consumer, State}.
+    #'basic.consume_ok'{consumer_tag = Tag} = amqp_channel:subscribe(Channel, Sub, Consumer),
+    {Consumer, State#s{consumer_pid = Consumer, subscription_tag = Tag}}.
 
 %% Internal functions
 consumer(Channel) ->
