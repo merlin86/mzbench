@@ -31,6 +31,12 @@ start_link(ScriptFileName) ->
     end.
 
 init([Pools]) ->
+    EventExporterSpec = {exporter,
+                         {event_exporter, start_link, []},
+                         temporary,
+                         5000,
+                         worker,
+                         [event_exporter]},
     WorkerSupSpec = {workers,
                      {mzbench_worker_sup, start_link, []},
                      permanent,
@@ -38,7 +44,7 @@ init([Pools]) ->
                      supervisor,
                      [mzbench_worker_sup]},
     {ok, {{one_for_one, 5, 10},
-          [WorkerSupSpec | lists:map(fun make_pool_child_spec/1, Pools)]
+          [EventExporterSpec] ++ [WorkerSupSpec | lists:map(fun make_pool_child_spec/1, Pools)]
          }}.
 
 -spec extract_pools([script_expr()]) -> [named_pool()].
