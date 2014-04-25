@@ -8,7 +8,7 @@
     init_per_testcase/2, end_per_testcase/2]).
 
 %% Test cases
--export([nonempty/1]).
+-export([nonempty/1, empty/1]).
 
 %%--------------------------------------------------------------------
 %% COMMON TEST CALLBACK FUNCTIONS
@@ -95,7 +95,7 @@ end_per_testcase(_Case, _Config) ->
 %%              are to be executed.
 %%--------------------------------------------------------------------
 all() ->
-    [nonempty].
+    [empty, nonempty].
 
 
 %%--------------------------------------------------------------------
@@ -104,5 +104,17 @@ all() ->
 
 nonempty(_Config) ->
     worker_runner:run_worker_script(0, [{print, "Hello"}], dummy_worker),
-    true = (folsom_metrics:get_metrics() =/= []),
+    true = (get_folsom_data() =/= []),
     ok.
+
+empty(_Config) ->
+    worker_runner:run_worker_script(0, [], dummy_worker),
+    true = (get_folsom_data() == []),
+    ok.
+
+%%--------------------------------------------------------------------
+%% INTERNAL FUNCTIONS
+%%--------------------------------------------------------------------
+
+get_folsom_data() ->
+    lists:foldl(fun(D, A) -> folsom_metrics:get_metric_value(D) ++ A end, [], folsom_metrics:get_metrics()).
