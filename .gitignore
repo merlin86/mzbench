@@ -1,4 +1,5 @@
 apps/*/ebin
+apps/*/logs
 rel/mzbench
 deps
 *.beam
