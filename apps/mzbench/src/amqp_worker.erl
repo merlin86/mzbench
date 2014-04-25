@@ -70,8 +70,12 @@ autoreceive(State = #s{channel = Channel}, Q) ->
     #'basic.consume_ok'{consumer_tag = Tag} = amqp_channel:subscribe(Channel, Sub, Consumer),
     {Consumer, State#s{consumer_pid = Consumer, subscription_tag = Tag}}.
 
-%% Internal functions
 consumer(Channel) ->
+    erlang:monitor(process, Channel),
+    consumer_loop(Channel).
+
+%% Internal functions
+consumer_loop(Channel) ->
     receive
         %% This is the first message received
         #'basic.consume_ok'{} ->
