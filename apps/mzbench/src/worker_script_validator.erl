@@ -21,7 +21,7 @@ validate_worker_script(Script, WorkerModule) ->
 validate_expr(ExprTuple, WorkerFns) when is_tuple(ExprTuple) ->
     case tuple_to_list(ExprTuple) of
         [] -> ["Empty instruction."];
-        [loop, LoopSpec, Body, Meta] ->
+        [loop, LoopSpec, Body, _Meta] ->
             validate_loopspec(LoopSpec) ++
             lists:flatmap(fun(Expr) ->
                                   validate_expr(Expr, WorkerFns)

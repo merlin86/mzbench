@@ -1,4 +1,5 @@
 
+-type abstract_expr() :: term().
 -type worker_state() :: term().
 -type script_value() :: term().
 -type script_expr() :: tuple() | script_value().

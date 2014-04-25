@@ -8,38 +8,13 @@
 
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 
-readlines(FileName) ->
-    {ok, Device} = file:open(FileName, [read]),
-    try get_all_lines(Device)
-      after file:close(Device)
-    end.
-
-get_all_lines(Device) ->
-    case io:get_line(Device, "") of
-        eof  -> [];
-        Line -> Line ++ get_all_lines(Device)
-    end.
-
-markup_ast({tuple, Line, [{atom, L2, Op} | Params]}) ->
-  {tuple, Line, [{atom, L2, Op} |
-                 markup_ast(Params)] ++
-                 [{cons, L2, {tuple, L2, [{atom, L2, line}, {integer, L2, Line}]}, {nil, L2}}]};
-markup_ast([]) -> [];
-markup_ast([H | T]) -> [markup_ast(H) | markup_ast(T)];
-markup_ast(T) when is_tuple(T) ->
-  case tuple_to_list(T) of
-    [cons, L | S] -> list_to_tuple([cons, L | markup_ast(S)]);
-    L -> list_to_tuple(L)
-  end;
-markup_ast(S) -> S.
-
 start_link(ScriptFileName) ->
     lager:info("Script filename: ~p~n", [ScriptFileName]),
-    String = readlines(ScriptFileName),
-    case erl_scan:string(String) of
+    {ok, Contents} = file:read_file(ScriptFileName),
+    case erl_scan:string(binary_to_list(Contents)) of
         {ok, Ts, _} ->
             {ok, [AST]} = erl_parse:parse_exprs(Ts),
-            Script = erl_parse:normalise(markup_ast(AST)),
+            Script = erl_parse:normalise(ast:markup(AST)),
             Pools = extract_pools(Script),
             lager:info("Extracted pools: ~p~n", [Pools]),
 
