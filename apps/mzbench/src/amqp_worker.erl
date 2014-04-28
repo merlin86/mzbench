@@ -2,7 +2,7 @@
 -export([initial_state/0]).
 -export([connect/2, disconnect/1,
          declare_exchange/2, declare_queue/2, bind/4,
-         publish/4, get/2, subscribe/2]).
+         publish/3, publish/4, get/2, subscribe/2]).
 -export([consumer/1, consumer_loop/1]).
 
 -include_lib("amqp_client/include/amqp_client.hrl").
@@ -49,6 +49,9 @@ bind(State, X, RoutingKey, Q) ->
     Channel = State#s.channel,
     amqp_channel:call(Channel, #'queue.bind'{queue = Q, exchange = X, routing_key = RoutingKey}),
     {nil, State}.
+
+publish(State, Q, Payload) ->
+    publish(State, <<>>, Q, Payload).
 
 publish(State, X, RoutingKey, Payload) ->
     Channel = State#s.channel,

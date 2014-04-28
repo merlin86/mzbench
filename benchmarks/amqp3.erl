@@ -6,7 +6,7 @@
     {subscribe, <<"q3">>},
     {loop, [{time, {1, min}},
             {rate, {100, rps}}], [
-      {publish, <<>>, <<"q3">>, <<"hello">>}
+      {publish, <<"q3">>, <<"hello">>}
     ]},
     {disconnect}
   ]}
