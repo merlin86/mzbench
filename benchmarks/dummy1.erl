@@ -1,6 +1,6 @@
 [{pool, [{size, 3},
          {worker_type, dummy_worker}],
-  [{loop, [{time, {1, min}},
+  [{loop, [{time, {5, sec}},
            {rate, {1, rps}}],
     [{print, "FOO"}]}]},
 

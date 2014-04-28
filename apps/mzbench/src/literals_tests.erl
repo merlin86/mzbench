@@ -9,7 +9,7 @@ bytes_test() ->
     ?assertEqual({7696581394432, b}, literals:convert({7, tb})).
 
 seconds_test() ->
-    ?assertEqual({3000, ms}, literals:convert({3, s})),
+    ?assertEqual({3000, ms}, literals:convert({3, sec})),
     ?assertEqual({120000, ms}, literals:convert({2, min})),
     ?assertEqual({7200000, ms}, literals:convert({2, h})).
 

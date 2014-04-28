@@ -6,7 +6,7 @@ convert({Val, kb}) -> {Val*1024, b};
 convert({Val, mb}) -> {Val*1024*1024, b};
 convert({Val, gb}) -> {Val*1024*1024*1024, b};
 convert({Val, tb}) -> {Val*1024*1024*1024*1024, b};
-convert({Val, s}) -> {Val*1000, ms};
+convert({Val, sec}) -> {Val*1000, ms};
 convert({Val, min}) -> {Val*60*1000, ms};
 convert({Val, h}) -> {Val*3600*1000, ms};
 convert({Val, rpm}) -> {Val/60, rps};
