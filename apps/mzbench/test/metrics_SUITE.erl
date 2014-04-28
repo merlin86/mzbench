@@ -103,7 +103,7 @@ all() ->
 %%--------------------------------------------------------------------
 
 nonempty(_Config) ->
-    worker_runner:run_worker_script(0, [{print, "Hello"}], dummy_worker),
+    worker_runner:run_worker_script(0, [{print, "Hello", []}], dummy_worker),
     true = (get_folsom_data() =/= []),
     ok.
 
