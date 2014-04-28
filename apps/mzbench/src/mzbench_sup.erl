@@ -10,8 +10,11 @@
 
 start_link(ScriptFileName) ->
     lager:info("Script filename: ~p~n", [ScriptFileName]),
-    case file:consult(ScriptFileName) of
-        {ok, [Script]} ->
+    {ok, Contents} = file:read_file(ScriptFileName),
+    case erl_scan:string(binary_to_list(Contents)) of
+        {ok, Ts, _} ->
+            {ok, [AST]} = erl_parse:parse_exprs(Ts),
+            Script = erl_parse:normalise(ast:markup(AST)),
             Pools = extract_pools(Script),
             lager:info("Extracted pools: ~p~n", [Pools]),
 
@@ -22,7 +25,7 @@ start_link(ScriptFileName) ->
                 _ -> lager:error("Script has errors: ~p", [Errors]),
                      {error, {shutdown, Errors}}
             end;
-        {error, {_, erl_parse, E}} ->
+        {error, {_, erl_parse, E}, _} ->
             lager:error("Parsing script file failed: ~p", [E]),
             {error, {shutdown, E}};
         A ->
@@ -45,8 +48,8 @@ init([Pools]) ->
 extract_pools(Script) ->
     enumerate_pools(lists:map(fun parse_pool/1, Script)).
 
--spec parse_pool({pool, [script_expr()], [script_expr()]}) -> pool().
-parse_pool({pool, PoolOpts, WorkerScript}) ->
+-spec parse_pool({pool, [script_expr()], [script_expr()], [script_expr()]}) -> pool().
+parse_pool({pool, PoolOpts, WorkerScript, _}) ->
     {literals:convert(WorkerScript),
      PoolOpts}.
 
@@ -74,8 +77,8 @@ make_pool_child_spec({Name, Script, PoolOpts}) ->
 
 -spec validate_pool(named_pool()) -> [string()].
 validate_pool({PoolName, Script, PoolOpts}) ->
-    Worker = proplists:get_value(worker_type, PoolOpts),
-    Size = proplists:get_value(size, PoolOpts),
+    Worker = mproplists:get_value(worker_type, PoolOpts),
+    Size = mproplists:get_value(size, PoolOpts),
     lists:map(
       fun(Msg) -> atom_to_list(PoolName) ++ ": " ++ Msg end,
       case module_exists(Worker) of

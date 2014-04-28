@@ -37,9 +37,9 @@ eval_expr(Value, State, _) -> {Value, State}.
 %% function parameters and dispatching.
 -spec eval_function([script_expr()], worker_state(), module())
     -> {script_value(), worker_state()}.
-eval_function([loop, LoopSpec, Body], State, WorkerModule) ->
-  {Rate, rps} = proplists:get_value(rate, LoopSpec, {undefined, rps}),
-  {Time, ms} = proplists:get_value(time, LoopSpec, {undefined, ms}),
+eval_function([loop, LoopSpec, Body, _], State, WorkerModule) ->
+  {Rate, rps} = mproplists:get_value(rate, LoopSpec, {undefined, rps}),
+  {Time, ms} = mproplists:get_value(time, LoopSpec, {undefined, ms}),
   Interval = if
                Rate == undefined -> 0;
                Rate == 0 -> undefined;
@@ -49,9 +49,10 @@ eval_function([loop, LoopSpec, Body], State, WorkerModule) ->
     Interval == undefined -> {nil, State};
     true -> timerun(msnow(), Time, trunc(Interval), Body, State, WorkerModule)
   end;
-eval_function([choose, List], _, _) -> utility:choose(List);
-eval_function([choose, N, List], _, _) -> utility:choose(N, List);
-eval_function([random_bytes, N], _, _) -> utility:random_bytes(N);
+eval_function([line, N], State, _) -> {{line, N}, State};
+eval_function([choose, List, _], _, _) -> utility:choose(List);
+eval_function([choose, N, List, _], _, _) -> utility:choose(N, List);
+eval_function([random_bytes, N, _], _, _) -> utility:random_bytes(N);
 eval_function([FnName | ParamExprs], State, WorkerModule) ->
     %% Eager left-to-right evaluation of parameters.
     {Params, NextState} = eval_expr(ParamExprs, State, WorkerModule),
