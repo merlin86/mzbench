@@ -1,3 +1,5 @@
+RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+
 .PHONY: all mzbench get-deps compile clean test-unit test-ct check distclean
 
 REBAR := $(shell which ./rebar || which rebar)
@@ -5,7 +7,7 @@ REBAR := $(shell which ./rebar || which rebar)
 all: get-deps compile
 
 run: mzbench
-	./rel/mzbench/bin/mzbench console
+	./rel/mzbench/bin/mzbench console $(realpath $(RUN_ARGS))
 
 mzbench: compile
 	$(REBAR) generate
