@@ -11,6 +11,8 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
+-include("ast.hrl").
+
 -record(s, {
         workers = [],
         name = undefined
@@ -32,9 +34,9 @@ stop(Name) ->
 
 init([Name, PoolOpts, Script]) ->
     lager:info("Pool ~p: Starting...", [Name]),
-    Size = mproplists:get_value(size, PoolOpts, undefined),
-    WorkerModule = mproplists:get_value(worker_type, PoolOpts, undefined),
-    WorkerOpts = mproplists:get_value(worker_opts, PoolOpts, undefined),
+    [Size] = mproplists:get_value(size, PoolOpts, [undefined]),
+    [WorkerModule] = mproplists:get_value(worker_type, PoolOpts, [undefined]),
+    [WorkerOpts] = mproplists:get_value(worker_opts, PoolOpts, [undefined]),
     Workers = start_workers(Size, WorkerOpts, Script, WorkerModule, []),
     lager:info("Pool ~p: started (~p workers)", [Name, Size]),
     {ok, #s{name = Name, workers = Workers}}.

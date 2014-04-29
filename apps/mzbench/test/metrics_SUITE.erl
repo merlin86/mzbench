@@ -2,6 +2,8 @@
 
 -include_lib("common_test/include/ct.hrl").
 
+-include("../src/ast.hrl").
+
 %% Test server callbacks
 -export([suite/0, all/0,
     init_per_suite/1, end_per_suite/1,
@@ -103,7 +105,7 @@ all() ->
 %%--------------------------------------------------------------------
 
 nonempty(_Config) ->
-    worker_runner:run_worker_script(0, [{print, "Hello", []}], dummy_worker),
+    worker_runner:run_worker_script(0, [#operation{name = print, args = ["Hello"]}], dummy_worker),
     true = (get_folsom_data() =/= []),
     ok.
 
@@ -117,4 +119,4 @@ empty(_Config) ->
 %%--------------------------------------------------------------------
 
 get_folsom_data() ->
-    lists:foldl(fun(D, A) -> folsom_metrics:get_metric_value(D) ++ A end, [], folsom_metrics:get_metrics()).
+    lists:foldl(fun(D, A) -> [folsom_metrics:get_metric_value(D)] ++ A end, [], folsom_metrics:get_metrics()).

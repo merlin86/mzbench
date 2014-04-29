@@ -1,10 +1,11 @@
 -module(ast_tests).
 -include_lib("eunit/include/eunit.hrl").
+-include("ast.hrl").
 
-markup_test() ->
-  ?assertEqual({cons,1,{nil,2}}, ast:markup({cons,1,{nil,2}})).
+transform_test() ->
+  ?assertEqual([], ast:transform({nil,1})).
 
-markup2_test() ->
+transform2_test() ->
   Input = {cons,1,
             {tuple,1,[{atom,1,size},
                       {integer,1,3}]},
@@ -12,14 +13,7 @@ markup2_test() ->
              {tuple,2,[{atom,2,worker_type},
                        {atom,2,dummy_worker}]},
              {nil,2}}},
-  Output = {cons,1,
-            {tuple,1,[{atom,1,size},
-                      {integer,1,3},
-                      {cons, 1, {tuple, 1, [{atom, 1, line}, {integer, 1, 1}]}, {nil, 1}}]},
-            {cons,2,
-             {tuple,2,[{atom,2,worker_type},
-                       {atom,2,dummy_worker},
-                       {cons, 2, {tuple, 2, [{atom, 2, line}, {integer, 2, 2}]}, {nil, 2}}]},
-             {nil,2}}},
-  ?assertEqual(Output, ast:markup(Input)).
+  Output = [#operation{name = size, args = [3], meta = [{line, 1}]},
+            #operation{name = worker_type, args = [dummy_worker], meta = [{line, 2}]}],
+  ?assertEqual(Output, ast:transform(Input)).
 

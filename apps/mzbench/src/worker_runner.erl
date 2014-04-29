@@ -3,6 +3,7 @@
 -export([start_link/3, run_worker_script/3]).
 
 -include("types.hrl").
+-include("ast.hrl").
 
 start_link(Spec, Script, WorkerModule) ->
     {ok, proc_lib:spawn_link(?MODULE, run_worker_script, [Spec, Script, WorkerModule])}.
@@ -20,8 +21,8 @@ run_worker_script(_Spec, Script, WorkerModule) ->
 
 -spec eval_expr(script_expr(), worker_state(), module())
     -> {script_value(), worker_state()}.
-eval_expr(ExprTuple, State, WorkerModule) when is_tuple(ExprTuple) ->
-    eval_function(tuple_to_list(ExprTuple), State, WorkerModule);
+eval_expr(#operation{} = Op, State, WorkerModule) ->
+    eval_function(Op, State, WorkerModule);
 eval_expr(ExprList, State, WorkerModule) when is_list(ExprList) ->
   lists:foldl(fun(E, {EvaluatedParams, CurrentState}) ->
                 {EP, S} = eval_expr(E, CurrentState, WorkerModule),
@@ -35,11 +36,12 @@ eval_expr(Value, State, _) -> {Value, State}.
 %% (worker_script_stdlib or something like that).
 %% This way eval_functions will be concerned with just evaluating
 %% function parameters and dispatching.
--spec eval_function([script_expr()], worker_state(), module())
+-spec eval_function(#operation{}, worker_state(), module())
     -> {script_value(), worker_state()}.
-eval_function([loop, LoopSpec, Body, _], State, WorkerModule) ->
-  {Rate, rps} = mproplists:get_value(rate, LoopSpec, {undefined, rps}),
-  {Time, ms} = mproplists:get_value(time, LoopSpec, {undefined, ms}),
+eval_function(#operation{name = loop} = Op, State, WorkerModule) ->
+  [LoopSpec, Body] = Op#operation.args,
+  [#constant{value = Rate, units = rps}] = mproplists:get_value(rate, LoopSpec, [#constant{value = undefined, units = rps}]),
+  [#constant{value = Time, units = ms}] = mproplists:get_value(time, LoopSpec, [#constant{value = undefined, units = ms}]),
   Interval = if
                Rate == undefined -> 0;
                Rate == 0 -> undefined;
@@ -49,14 +51,13 @@ eval_function([loop, LoopSpec, Body, _], State, WorkerModule) ->
     Interval == undefined -> {nil, State};
     true -> timerun(msnow(), Time, trunc(Interval), Body, State, WorkerModule)
   end;
-eval_function([line, N], State, _) -> {{line, N}, State};
-eval_function([choose, List, _], _, _) -> utility:choose(List);
-eval_function([choose, N, List, _], _, _) -> utility:choose(N, List);
-eval_function([random_bytes, N, _], _, _) -> utility:random_bytes(N);
-eval_function([FnName | ParamExprs], State, WorkerModule) ->
+eval_function(#operation{name = choose, args = [N, List]}, _, _) -> utility:choose(N, List);
+eval_function(#operation{name = choose, args = List}, _, _) -> utility:choose(List);
+eval_function(#operation{name = random_bytes, args = N}, _, _) -> utility:random_bytes(N);
+eval_function(#operation{} = Op, State, WorkerModule) ->
     %% Eager left-to-right evaluation of parameters.
-    {Params, NextState} = eval_expr(ParamExprs, State, WorkerModule),
-    apply(WorkerModule, FnName, [NextState | Params]).
+    {Params, NextState} = eval_expr(Op#operation.args, State, WorkerModule),
+    apply(WorkerModule, Op#operation.name, [NextState, Op#operation.meta | Params]).
 
 
 msnow() ->

@@ -1,40 +1,43 @@
 -module(worker_runner_tests).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("ast.hrl").
 
 empty_script_test() ->
     ?assertEqual({ok, ""}, run([])).
 
 oneliner_test() ->
-    Script = [{print, "Hello", []}],
+    Script = [#operation{name = print, args = ["Hello"]}],
     ?assertEqual({ok, "Hello"}, run(Script)).
 
 print_three_test() ->
-    Script = [{print, "FOO", []}, {print, "BAR", []}, {print, "BAZ", []}],
+    Script = [#operation{name = print, args = ["FOO"]},
+              #operation{name = print, args = ["BAR"]},
+              #operation{name = print, args = ["BAZ"]}],
     ?assertEqual({ok, "FOOBARBAZ"}, run(Script)).
 
 print_loop_test() ->
-    Script = [{loop, [{time, {1100, ms}, []},
-                      {rate, {4, rps}, []}],
-               [{print, "F", []}], []}],
+    Script = [#operation{name = loop, args = [[#operation{name = time, args = [#constant{value = 1100, units = ms}]},
+                      #operation{name = rate, args = [#constant{value = 4, units = rps}]}],
+               [#operation{name = print, args = ["F"]}]]}],
     ?assertEqual({ok, "FFFFF"}, run(Script)).
 
 empty_loop_test() ->
-    Script = [{loop, [{time, {0, ms}, []},
-                      {rate, {4, rps}, []}],
-               [{print, "FOO", []}], []}],
+    Script = [#operation{name = loop, args = [[#operation{name = time, args = [#constant{value = 0, units = ms}]},
+                      #operation{name = rate, args = [#constant{value = 4, units = rps}]}],
+               [#operation{name = print, args = ["FOO"]}]]}],
     ?assertEqual({ok, ""}, run(Script)).
 
 empty_loop2_test() ->
-    Script = [{loop, [{time, {1100, ms}, []},
-                      {rate, {4, rps}, []}],
-               [], []}],
+    Script = [#operation{name = loop, args = [[#operation{name = time, args = [#constant{value = 1100, units = ms}]},
+                      #operation{name = rate, args = [#constant{value = 4, units = rps}]}],
+                 []]}],
     ?assertEqual({ok, ""}, run(Script)).
 
 empty_loop3_test() ->
-    Script = [{loop, [{time, {1100, ms}, []},
-                      {rate, {0, rps}, []}],
-               [{print, "FOO", []}], []}],
+    Script = [#operation{name = loop, args = [[#operation{name = time, args = [#constant{value = 1100, units = ms}]},
+                      #operation{name = rate, args = [#constant{value = 0, units = rps}]}],
+               [#operation{name = print, args = "FOO"}]]}],
     ?assertEqual({ok, ""}, run(Script)).
 
 run(Script) ->

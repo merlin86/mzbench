@@ -5,6 +5,7 @@
 -export([init/1]).
 
 -include("types.hrl").
+-include("ast.hrl").
 
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 
@@ -14,7 +15,7 @@ start_link(ScriptFileName) ->
     case erl_scan:string(binary_to_list(Contents)) of
         {ok, Ts, _} ->
             {ok, [AST]} = erl_parse:parse_exprs(Ts),
-            Script = erl_parse:normalise(ast:markup(AST)),
+            Script = ast:transform(AST),
             Pools = extract_pools(Script),
             lager:info("Extracted pools: ~p~n", [Pools]),
 
@@ -50,47 +51,41 @@ init([Pools]) ->
           [EventExporterSpec] ++ [WorkerSupSpec | lists:map(fun make_pool_child_spec/1, Pools)]
          }}.
 
--spec extract_pools([script_expr()]) -> [named_pool()].
+-spec extract_pools([script_expr()]) -> [#pool{name::atom(), script::[script_expr()]}].
 extract_pools(Script) ->
-    enumerate_pools(lists:map(fun parse_pool/1, Script)).
-
--spec parse_pool({pool, [script_expr()], [script_expr()], [script_expr()]}) -> pool().
-parse_pool({pool, PoolOpts, WorkerScript, _}) ->
-    {literals:convert(WorkerScript),
-     PoolOpts}.
-
--spec enumerate_pools([pool()]) -> [named_pool()].
-enumerate_pools(Xs) ->
     lists:zipwith(
-      fun(Number, {Script, PoolOpts}) ->
-              {list_to_atom("pool" ++ integer_to_list(Number)),
-               Script,
-               PoolOpts}
+      fun(Number, #operation{name = pool} = Op) ->
+              [PoolOpts, PoolScript] = Op#operation.args,
+              #pool{name = list_to_atom("pool" ++ integer_to_list(Number)),
+                    opts = PoolOpts,
+                    script = PoolScript,
+                    meta = Op#operation.meta
+                    }
       end,
-      lists:seq(1, length(Xs)),
-      Xs).
+      lists:seq(1, length(Script)),
+      Script).
 
--spec make_pool_child_spec(named_pool()) -> supervisor:child_spec().
-make_pool_child_spec({Name, Script, PoolOpts}) ->
-    {Name,
+-spec make_pool_child_spec(#pool{}) -> supervisor:child_spec().
+make_pool_child_spec(#pool{} = P) ->
+    {P#pool.name,
      {mzbench_pool,
       start_link,
-      [Name, PoolOpts, Script]},
+      [P#pool.name, P#pool.opts, P#pool.script]},
      temporary,
      5000,
      worker,
      [mzbench_pool]}.
 
--spec validate_pool(named_pool()) -> [string()].
-validate_pool({PoolName, Script, PoolOpts}) ->
-    Worker = mproplists:get_value(worker_type, PoolOpts),
-    Size = mproplists:get_value(size, PoolOpts),
+-spec validate_pool(#pool{}) -> [string()].
+validate_pool(#pool{} = P) ->
+    [Worker] = mproplists:get_value(worker_type, P#pool.opts),
+    [Size] = mproplists:get_value(size, P#pool.opts),
     lists:map(
-      fun(Msg) -> atom_to_list(PoolName) ++ ": " ++ Msg end,
+      fun(Msg) -> atom_to_list(P#pool.name) ++ ": " ++ Msg end,
       case module_exists(Worker) of
           true ->
               ["zero size is not allowed." || Size == 0] ++
-              case worker_script_validator:validate_worker_script(Script, Worker) of
+              case worker_script_validator:validate_worker_script(P#pool.script, Worker) of
                   ok -> [];
                   {invalid_script, Errors} -> Errors
               end;

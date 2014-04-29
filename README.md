@@ -5,7 +5,7 @@ Distributed load testing tool.
 
 Work in progress.
 
-Invoke `ERL_FLAGS="../../benchmarks/script2.erl" make run` to see that something sort of works.
+Invoke `ERL_FLAGS="../../benchmarks/dummy1.erl" make run` to see that something sort of works.
 
 ## How to add a new worker
 
