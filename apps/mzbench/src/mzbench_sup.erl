@@ -51,41 +51,38 @@ init([Pools]) ->
           [EventExporterSpec] ++ [WorkerSupSpec | lists:map(fun make_pool_child_spec/1, Pools)]
          }}.
 
--spec extract_pools([script_expr()]) -> [#pool{name::atom(), script::[script_expr()]}].
+-spec extract_pools([script_expr()]) -> [#operation{}].
 extract_pools(Script) ->
     lists:zipwith(
-      fun(Number, #operation{name = pool} = Op) ->
-              [PoolOpts, PoolScript] = Op#operation.args,
-              #pool{name = list_to_atom("pool" ++ integer_to_list(Number)),
-                    opts = PoolOpts,
-                    script = PoolScript,
-                    meta = Op#operation.meta
-                    }
+      fun(Number, #operation{name = pool, meta = Meta} = Op) ->
+              Op#operation{meta = [{pool_name, integer_to_list(Number)} | Meta]}
       end,
       lists:seq(1, length(Script)),
       Script).
 
--spec make_pool_child_spec(#pool{}) -> supervisor:child_spec().
-make_pool_child_spec(#pool{} = P) ->
-    {P#pool.name,
+-spec make_pool_child_spec(#operation{}) -> supervisor:child_spec().
+make_pool_child_spec(#operation{name = pool, args = [Opts, Script]} = Op) ->
+    Name = "pool" ++ proplists:get_value(pool_name, Op#operation.meta),
+    {list_to_atom(Name),
      {mzbench_pool,
       start_link,
-      [P#pool.name, P#pool.opts, P#pool.script]},
+      [list_to_atom(Name), Opts, Script]},
      temporary,
      5000,
      worker,
      [mzbench_pool]}.
 
--spec validate_pool(#pool{}) -> [string()].
-validate_pool(#pool{} = P) ->
-    [Worker] = mproplists:get_value(worker_type, P#pool.opts),
-    [Size] = mproplists:get_value(size, P#pool.opts),
+-spec validate_pool(#operation{}) -> [string()].
+validate_pool(#operation{name = pool, args = [Opts, Script]} = Op) ->
+    Name = proplists:get_value(pool_name, Op#operation.meta),
+    [Worker] = mproplists:get_value(worker_type, Opts),
+    [Size] = mproplists:get_value(size, Opts),
     lists:map(
-      fun(Msg) -> atom_to_list(P#pool.name) ++ ": " ++ Msg end,
+      fun(Msg) -> Name ++ ": " ++ Msg end,
       case module_exists(Worker) of
           true ->
               ["zero size is not allowed." || Size == 0] ++
-              case worker_script_validator:validate_worker_script(P#pool.script, Worker) of
+              case worker_script_validator:validate_worker_script(Script, Worker) of
                   ok -> [];
                   {invalid_script, Errors} -> Errors
               end;

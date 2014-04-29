@@ -9,10 +9,3 @@
         units = undefined,
         meta = []
         }).
-
--record(pool, {
-        name = undefined,
-        opts = [],
-        script = undefined,
-        meta = []
-        }).
