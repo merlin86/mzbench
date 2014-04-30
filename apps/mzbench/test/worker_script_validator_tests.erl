@@ -1,7 +1,7 @@
 -module(worker_script_validator_tests).
 
 -include_lib("eunit/include/eunit.hrl").
--include("ast.hrl").
+-include("../src/ast.hrl").
 
 validation_ok_simple_test() ->
     ?assertEqual(check([#operation{name = print, args = ["NaNNaNNaNNaNNaNNaN"]},

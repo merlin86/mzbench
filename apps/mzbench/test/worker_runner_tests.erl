@@ -1,7 +1,7 @@
 -module(worker_runner_tests).
 
 -include_lib("eunit/include/eunit.hrl").
--include("ast.hrl").
+-include("../src/ast.hrl").
 
 empty_script_test() ->
     ?assertEqual({ok, ""}, run([])).

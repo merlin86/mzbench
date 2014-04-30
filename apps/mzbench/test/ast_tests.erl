@@ -1,6 +1,6 @@
 -module(ast_tests).
 -include_lib("eunit/include/eunit.hrl").
--include("ast.hrl").
+-include("../src/ast.hrl").
 
 transform_test() ->
   ?assertEqual([], ast:transform({nil,1})).
