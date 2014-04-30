@@ -1,7 +1,8 @@
 -module(mzbench_sup).
 
 -export([start_link/0,
-         run/1
+         run/1,
+         run/2
         ]).
 
 -behaviour(supervisor).
@@ -16,12 +17,16 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-run(ScriptFileName) ->
+
+run(ScriptFileName) -> run(ScriptFileName, application:get_env(mzbench, nodes)).
+
+run(ScriptFileName, undefined) -> run(ScriptFileName, [node()|nodes()]);
+run(ScriptFileName, Nodes) ->
     Path = case lists:prefix("/", ScriptFileName) of
                true -> ScriptFileName;
                _    -> "../../" ++ ScriptFileName
            end,
-    supervisor:start_child(?MODULE, [Path]).
+    supervisor:start_child(?MODULE, [Path, Nodes]).
 
 %%%===================================================================
 %%% supervisor callbacks

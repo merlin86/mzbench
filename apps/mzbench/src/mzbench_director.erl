@@ -1,6 +1,6 @@
 -module(mzbench_director).
 
--export([start_link/2]).
+-export([start_link/3]).
 
 -behaviour(gen_server).
 -export([init/1,
@@ -23,13 +23,13 @@
 %%% API
 %%%===================================================================
 
-start_link(SuperPid, ScriptFileName) ->
+start_link(SuperPid, ScriptFileName, Nodes) ->
     lager:info("[ director ] Loading ~p", [ScriptFileName]),
     case read_script(ScriptFileName) of
         {ok, Script} ->
             case extract_pools(Script) of
                 {ok, Pools} ->
-                    gen_server:start_link(?MODULE, [SuperPid, Pools], []);
+                    gen_server:start_link(?MODULE, [SuperPid, Pools, Nodes], []);
                 {error, E} ->
                     {error, {shutdown, E}}
             end;
@@ -41,8 +41,8 @@ start_link(SuperPid, ScriptFileName) ->
 %%% gen_server callbacks
 %%%===================================================================
 
-init([SuperPid, Pools]) ->
-    gen_server:cast(self(), {start_pools, Pools}),
+init([SuperPid, Pools, Nodes]) ->
+    gen_server:cast(self(), {start_pools, Pools, alive_nodes(Nodes)}),
     {ok, #state{
         super_pid = SuperPid
     }}.
@@ -51,9 +51,9 @@ handle_call(Req, _From, State) ->
     lager:error("Unhandled call: ~p", [Req]),
     {stop, {unhandled_call, Req}, State}.
 
-handle_cast({start_pools, Pools}, State) ->
+handle_cast({start_pools, Pools, Nodes}, State) ->
     {noreply, State#state{
-        pools = start_pools(State#state.super_pid, Pools, [])
+        pools = start_pools(State#state.super_pid, Pools, Nodes, [])
     }};
 handle_cast(Req, State) ->
     lager:error("Unhandled cast: ~p", [Req]),
@@ -82,13 +82,13 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-start_pools(_, [], Acc) ->
+start_pools(_, [], _, Acc) ->
     lager:info("[ director ] Started all pools"),
     Acc;
-start_pools(SuperPid, [Pool | Pools], Acc)->
-    {ok, Pid} = mzbench_director_sup:start_child(SuperPid, mzbench_pool, [SuperPid, Pool]),
+start_pools(SuperPid, [Pool | Pools], Nodes, Acc)->
+    {ok, Pid} = mzbench_director_sup:start_child(SuperPid, mzbench_pool, [SuperPid, Pool, Nodes]),
     Ref = erlang:monitor(process, Pid),
-    start_pools(SuperPid, Pools, [{Pid, Ref} | Acc]).
+    start_pools(SuperPid, Pools, Nodes, [{Pid, Ref} | Acc]).
 
 -spec read_script(string()) -> {ok, [script_expr()]} | {error, any()}.
 read_script(ScriptFileName) ->
@@ -147,3 +147,12 @@ module_exists(Module) ->
         _:_ ->
             false
     end.
+
+-spec alive_nodes([atom()]) -> [atom()].
+alive_nodes(Nodes) ->
+    lists:filter(
+        fun (N) ->
+            net_adm:ping(N) == pong
+        end, Nodes).
+
+

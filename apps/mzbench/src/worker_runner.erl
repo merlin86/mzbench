@@ -1,20 +1,30 @@
 -module(worker_runner).
 
--export([start_link/3, run_worker_script/3]).
+-export([start_link/5, run_worker_script/4]).
 
 -include("types.hrl").
 -include("ast.hrl").
 
-start_link(Spec, Script, WorkerModule) ->
-    {ok, proc_lib:spawn_link(?MODULE, run_worker_script, [Spec, Script, WorkerModule])}.
+start_link(Node, Spec, Script, WorkerModule, Pool) ->
+    {ok, proc_lib:spawn_link(Node, ?MODULE, run_worker_script, [Spec, Script, WorkerModule, Pool])}.
 
 %% Spec contains worker id
 %% Feel free to add anything else when necessary (launch timestamp, parent pid etc)
--spec run_worker_script(term(), [script_expr()], module())
+-spec run_worker_script(term(), [script_expr()], module(), Pool :: pid())
     -> {ok, worker_state()}.
-run_worker_script(_Spec, Script, WorkerModule) ->
-    {_, WorkerResultState} = eval_expr(Script, WorkerModule:initial_state(), WorkerModule),
-    {ok, WorkerResultState}.
+
+run_worker_script(_Spec, Script, WorkerModule, Pool) ->
+    Res =
+        try
+            {WorkerResult, _WorkerResultState} = eval_expr(Script, WorkerModule:initial_state(), WorkerModule),
+             %TODO: maybe call terminate_state here
+            {ok, WorkerResult}
+        catch
+            C:E ->
+                {exception, node(), {C, E, erlang:get_stacktrace()}}
+        end,
+
+    Pool ! {worker_result, self(), Res}.
 
 -spec eval_expr(script_expr(), worker_state(), module())
     -> {script_value(), worker_state()}.

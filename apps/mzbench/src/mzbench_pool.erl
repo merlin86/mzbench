@@ -1,6 +1,6 @@
 -module(mzbench_pool).
 
--export([start_link/2,
+-export([start_link/3,
          stop/1
         ]).
 
@@ -24,8 +24,8 @@
 %%% API
 %%%===================================================================
 
-start_link(SuperPid, Pool) ->
-    gen_server:start_link(?MODULE, [SuperPid, Pool], []).
+start_link(SuperPid, Pool, Nodes) ->
+    gen_server:start_link(?MODULE, [SuperPid, Pool, Nodes], []).
 
 stop(Pid) ->
     gen_server:call(Pid, stop).
@@ -34,47 +34,65 @@ stop(Pid) ->
 %%% gen_server callbacks
 %%%===================================================================
 
-init([SuperPid, Pool]) ->
-    gen_server:cast(self(), {start_workers, SuperPid, Pool}),
-    {ok, #s{}}.
+init([SuperPid, Pool, Nodes]) ->
+    Tid = ets:new(pool_workers, [protected, {keypos, 1}]),
+    gen_server:cast(self(), {start_workers, SuperPid, Pool, Nodes}),
+    {ok, #s{workers = Tid}}.
 
-handle_call(stop, _From, State = #s{workers = Workers, name = Name}) ->
+handle_call(stop, _From, State = #s{workers = Tid, name = Name}) ->
     lager:info("[ ~p ] Received stop signal", [Name]),
-    lists:foreach(
-        fun ({Pid, Ref}) ->
+    ets:foldl(
+        fun ({Pid, Ref}, Acc) ->
             erlang:demonitor(Ref, [flush]),
-            erlang:exit(Pid, kill)
-        end, Workers),
-    {stop, normal, ok, State = #s{workers = []}};
+            erlang:exit(Pid, kill),
+            Acc
+        end, [], Tid),
+    ets:delete_all_objects(Tid),
+    {stop, normal, ok, State = #s{}};
 
 handle_call(Req, _From, State) ->
     lager:error("Unhandled call: ~p", [Req]),
     {stop, {unhandled_call, Req}, State}.
 
-handle_cast({start_workers, SuperPid, Pool}, State) ->
+handle_cast({start_workers, SuperPid, Pool, Nodes}, State = #s{workers = Tid}) ->
     #operation{name = pool, args = [PoolOpts, Script], meta = Meta} = Pool,
     Name = proplists:get_value(pool_name, Meta),
     [Size] = mproplists:get_value(size, PoolOpts, [undefined]),
     [WorkerModule] = mproplists:get_value(worker_type, PoolOpts, [undefined]),
     WorkerOpts = [],
-    Workers = start_workers(SuperPid, Size, WorkerOpts, Script, WorkerModule, []),
+    Workers = start_workers(SuperPid, Size, Nodes, WorkerOpts, Script, WorkerModule, self(), []),
+    true = ets:insert_new(Tid, Workers),
     lager:info("[ ~p ] Started ~p workers", [Name, Size]),
-    {noreply, State#s{
-        name    = Name,
-        workers = Workers
-    }};
+    {noreply, State#s{name = Name}};
+
 handle_cast(Msg, State) ->
     lager:error("Unhandled cast: ~p", [Msg]),
     {stop, {unhandled_cast, Msg}, State}.
 
-handle_info({'DOWN', Ref, _, Pid, _Reason}, State = #s{workers = Workers, name = Name}) ->
-    case lists:delete({Pid, Ref}, Workers) of
-        [] ->
-            lager:info("[ ~p ] All workers have finished", [Name]),
-            {stop, normal, State#s{workers = []}};
-        NewWorkers ->
-            {noreply, State#s{workers = NewWorkers}}
-    end;
+handle_info({worker_result, Pid, Res}, State = #s{workers = Workers, name = Name}) ->
+
+    maybe_report_error(Pid, Res),
+
+    case ets:lookup(Workers, Pid) of
+        [{Pid, Ref}] ->
+            ets:delete(Workers, Pid),
+            erlang:demonitor(Ref, [flush]);
+        _ ->
+            lager:error("[ ~p ] Received result from unknown worker: ~p / ~p", [Name, Pid, Res])
+    end,
+    maybe_stop(State);
+
+handle_info({'DOWN', _Ref, _, Pid, Reason}, State = #s{workers = Workers, name = Name}) ->
+    case ets:lookup(Workers, Pid) of
+        [{Pid, Ref}] ->
+            lager:error("[ ~p ] Received DOWN from worker ~p with reason ~p", [Name, Pid, Reason]),
+            ets:delete(Workers, Pid),
+            erlang:demonitor(Ref, [flush]);
+        _ ->
+            lager:error("[ ~p ] Received DOWN from unknown process: ~p / ~p", [Name, Pid, Reason])
+    end,
+    ets:delete(Workers, Pid),
+    maybe_stop(State);
 
 handle_info(Info, State) ->
     lager:error("Unhandled info: ~p", [Info]),
@@ -90,10 +108,25 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-start_workers(SuperPid, N, WorkerOpts, Script, WorkerModule, Res) when N > 0, is_integer(N) ->
-    {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, [[{worker_id, N} | WorkerOpts],
-                                                                         Script, WorkerModule]),
+start_workers(SuperPid, N, [Node|Nodes], WorkerOpts, Script, WorkerModule, Pid, Res) when N > 0, is_integer(N) ->
+    {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, [Node, [{worker_id, N} | WorkerOpts],
+                                                                         Script, WorkerModule, Pid]),
     Ref = erlang:monitor(process, P),
-    start_workers(SuperPid, N-1, WorkerOpts, Script, WorkerModule, [{P, Ref} | Res]);
-start_workers(_, _, _, _, _, Res) -> Res.
+    start_workers(SuperPid, N-1, Nodes ++ [Node], WorkerOpts, Script, WorkerModule, Pid, [{P, Ref} | Res]);
+start_workers(_, _, _, _, _, _, _, Res) -> Res.
+
+maybe_stop(State = #s{workers = Workers, name = Name}) ->
+    case ets:first(Workers) == '$end_of_table' of
+        true ->
+            lager:info("[ ~p ] All workers have finished", [Name]),
+            {stop, normal, State};
+        false ->
+            {noreply, State}
+    end.
+
+maybe_report_error(_, {ok, _}) -> ok;
+maybe_report_error(Pid, {error, Reason}) ->
+    lager:error("Worker ~p has finished abnormally: ~p", [Pid, Reason]);
+maybe_report_error(Pid, {exception, Node, {_C, E, ST}}) ->
+    lager:error("Worker ~p on ~p has crashed: ~p~nStacktrace: ~p", [Pid, Node, E, ST]).
 
