@@ -1,4 +1,4 @@
--module(worker_pool).
+-module(mzbench_pool).
 
 -export([start_link/2,
          stop/1
@@ -91,7 +91,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 start_workers(SuperPid, N, Args, Res) when N > 0, is_integer(N) ->
-    {ok, P} = director_sup:start_child(SuperPid, worker_runner, Args),
+    {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, Args),
     Ref = erlang:monitor(process, P),
     start_workers(SuperPid, N-1, Args, [{P, Ref} | Res]);
 start_workers(_, _, _, Res) -> Res.

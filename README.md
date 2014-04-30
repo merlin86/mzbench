@@ -5,7 +5,19 @@ Distributed load testing tool.
 
 Work in progress.
 
-Invoke `make run benchmarks/dummy1.erl` to see that something sort of works.
+# Usage
+
+````
+make run benchmarks/dummy1.erl
+```
+
+or
+
+```
+make run
+...
+(erlsh)> mzbench_sup:run("benchmarks/dummy1.erl").
+```
 
 ## How to add a new worker
 

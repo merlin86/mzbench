@@ -1,4 +1,4 @@
--module(director_sup).
+-module(mzbench_director_sup).
 -export([start_link/1,
          start_child/3,
          stop/1
@@ -28,7 +28,7 @@ init([ScriptFileName]) ->
     lager:info("[ director_sup ] I'm at ~p", [self()]),
     {ok, {{one_for_one, 5, 1}, [
         child_spec(event_exporter, transient, []),
-        child_spec(director, temporary, [self(), ScriptFileName])
+        child_spec(mzbench_director, temporary, [self(), ScriptFileName])
     ]}}.
 
 %%%===================================================================

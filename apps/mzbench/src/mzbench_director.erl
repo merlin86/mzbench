@@ -1,10 +1,11 @@
--module(director).
+-module(mzbench_director).
 
 -export([start_link/2]).
 
 -behaviour(gen_server).
 -export([init/1,
          handle_cast/2,
+         handle_call/3,
          handle_info/2,
          terminate/2,
          code_change/3
@@ -61,8 +62,8 @@ handle_cast(Req, State) ->
 handle_info({'DOWN', Ref, _, Pid, _Reason}, State) ->
     case lists:delete({Pid, Ref}, State#state.pools) of
         [] ->
-            lager:info("[ director ] All pools have finished, stopping director_sup ~p", [State#state.super_pid]),
-            director_sup:stop(State#state.super_pid),
+            lager:info("[ director ] All pools have finished, stopping mzbench_director_sup ~p", [State#state.super_pid]),
+            mzbench_director_sup:stop(State#state.super_pid),
             {noreply, State};
         Pools ->
             {noreply, State#state{pools = Pools}}
@@ -85,7 +86,7 @@ start_pools(_, [], Acc) ->
     lager:info("[ director ] Started all pools"),
     Acc;
 start_pools(SuperPid, [Pool | Pools], Acc)->
-    {ok, Pid} = director_sup:start_child(SuperPid, worker_pool, [SuperPid, Pool]),
+    {ok, Pid} = mzbench_director_sup:start_child(SuperPid, mzbench_pool, [SuperPid, Pool]),
     Ref = erlang:monitor(process, Pid),
     start_pools(SuperPid, Pools, [{Pid, Ref} | Acc]).
 

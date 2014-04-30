@@ -29,6 +29,12 @@ run(ScriptFileName) ->
 
 init([]) ->
     {ok, {{simple_one_for_one, 0, 1}, [
-        {director_sup, {director_sup, start_link, []}, transient, infinity, supervisor, [director_sup]}
+        child_spec(mzbench_director_sup, [])
     ]}}.
 
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
+child_spec(I, Args) ->
+    {I, {I, start_link, Args}, transient, infinity, supervisor, [I]}.
