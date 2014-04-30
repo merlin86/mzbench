@@ -1,20 +1,20 @@
 -module(mzbench_sup).
--behaviour(supervisor).
 
--export([start_link/0, run/1]).
+-export([start_link/0,
+         run/1
+        ]).
+
+-behaviour(supervisor).
 -export([init/1]).
 
 -include("types.hrl").
 
--define(CHILD(I, Type), {I, {I, start_link, []}, transient, infinity, Type, [I]}).
+%%%===================================================================
+%%% API
+%%%===================================================================
 
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
-
-init(_) ->
-    {ok, {{simple_one_for_one, 0, 1}, [
-        ?CHILD(director_sup, supervisor)
-    ]}}.
 
 run(ScriptFileName) ->
     Path = case lists:prefix("/", ScriptFileName) of
@@ -22,3 +22,13 @@ run(ScriptFileName) ->
                _    -> "../../" ++ ScriptFileName
            end,
     supervisor:start_child(?MODULE, [Path]).
+
+%%%===================================================================
+%%% supervisor callbacks
+%%%===================================================================
+
+init([]) ->
+    {ok, {{simple_one_for_one, 0, 1}, [
+        {director_sup, {director_sup, start_link, []}, transient, infinity, supervisor, [director_sup]}
+    ]}}.
+

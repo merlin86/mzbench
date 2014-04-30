@@ -1,9 +1,17 @@
 -module(worker_pool).
--behaviour(gen_server).
 
--export([start_link/2, stop/1]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-         terminate/2, code_change/3]).
+-export([start_link/2,
+         stop/1
+        ]).
+
+-behaviour(gen_server).
+-export([init/1,
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3
+        ]).
 
 -include("ast.hrl").
 
@@ -57,7 +65,7 @@ handle_cast({start_workers, SuperPid, Pool}, State) ->
     }};
 handle_cast(Msg, State) ->
     lager:error("Unhandled cast: ~p", [Msg]),
-    {stop, {unhandled_call, Msg}, State}.
+    {stop, {unhandled_cast, Msg}, State}.
 
 handle_info({'DOWN', Ref, _, Pid, _Reason}, State = #s{workers = Workers, name = Name}) ->
     case lists:delete({Pid, Ref}, Workers) of

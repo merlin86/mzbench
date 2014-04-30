@@ -1,9 +1,14 @@
 -module(director).
--behaviour(gen_server).
 
 -export([start_link/2]).
--export([init/1, handle_cast/2, handle_info/2,
-         terminate/2, code_change/3]).
+
+-behaviour(gen_server).
+-export([init/1,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3
+        ]).
 
 -include("types.hrl").
 -include("ast.hrl").
@@ -12,6 +17,10 @@
     super_pid = undefined,
     pools     = []
 }).
+
+%%%===================================================================
+%%% API
+%%%===================================================================
 
 start_link(SuperPid, ScriptFileName) ->
     lager:info("[ director ] Loading ~p", [ScriptFileName]),
@@ -27,26 +36,40 @@ start_link(SuperPid, ScriptFileName) ->
             {error, {shutdown, E}}
     end.
 
+%%%===================================================================
+%%% gen_server callbacks
+%%%===================================================================
+
 init([SuperPid, Pools]) ->
     gen_server:cast(self(), {start_pools, Pools}),
     {ok, #state{
         super_pid = SuperPid
     }}.
 
+handle_call(Req, _From, State) ->
+    lager:error("Unhandled call: ~p", [Req]),
+    {stop, {unhandled_call, Req}, State}.
+
 handle_cast({start_pools, Pools}, State) ->
     {noreply, State#state{
         pools = start_pools(State#state.super_pid, Pools, [])
-    }}.
+    }};
+handle_cast(Req, State) ->
+    lager:error("Unhandled cast: ~p", [Req]),
+    {stop, {unhandled_cast, Req}, State}.
 
 handle_info({'DOWN', Ref, _, Pid, _Reason}, State) ->
     case lists:delete({Pid, Ref}, State#state.pools) of
         [] ->
             lager:info("[ director ] All pools have finished, stopping director_sup ~p", [State#state.super_pid]),
-            director_sup:terminate(State#state.super_pid),
+            director_sup:stop(State#state.super_pid),
             {noreply, State};
         Pools ->
             {noreply, State#state{pools = Pools}}
-    end.
+    end;
+handle_info(Req, State) ->
+    lager:error("Unhandled info: ~p", [Req]),
+    {noreply, State}.
 
 terminate(_Reason, _State) ->
     ok.
@@ -54,16 +77,17 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%% internal
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
 
-start_pools(_, [], Res) ->
+start_pools(_, [], Acc) ->
     lager:info("[ director ] Started all pools"),
-    Res;
-start_pools(SuperPid, [Pool | Pools], Res)->
+    Acc;
+start_pools(SuperPid, [Pool | Pools], Acc)->
     {ok, Pid} = director_sup:start_child(SuperPid, worker_pool, [SuperPid, Pool]),
     Ref = erlang:monitor(process, Pid),
-    start_pools(SuperPid, Pools, [{Pid, Ref} | Res]).
-
+    start_pools(SuperPid, Pools, [{Pid, Ref} | Acc]).
 
 -spec read_script(string()) -> {ok, [script_expr()]} | {error, any()}.
 read_script(ScriptFileName) ->

@@ -14,9 +14,7 @@ start_link(Spec, Script, WorkerModule) ->
 -spec run_worker_script(term(), [script_expr()], module())
     -> {ok, worker_state()}.
 run_worker_script(_Spec, Script, WorkerModule) ->
-%     lager:info("[ worker ] starting..."),
     {_, WorkerResultState} = eval_expr(Script, WorkerModule:initial_state(), WorkerModule),
-%     lager:info("[ worker ] finished with ~p", [WorkerResultState]),
     {ok, WorkerResultState}.
 
 -spec eval_expr(script_expr(), worker_state(), module())
