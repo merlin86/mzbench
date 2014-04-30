@@ -50,8 +50,8 @@ bind(State, _Meta, X, RoutingKey, Q) ->
     amqp_channel:call(Channel, #'queue.bind'{queue = Q, exchange = X, routing_key = RoutingKey}),
     {nil, State}.
 
-publish(State, _Meta, Q, Payload) ->
-    publish(State, <<>>, Q, Payload).
+publish(State, Meta, Q, Payload) ->
+    publish(State, Meta, <<>>, Q, Payload).
 
 publish(State, _Meta, X, RoutingKey, Payload) ->
     Channel = State#s.channel,

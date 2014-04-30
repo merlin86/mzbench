@@ -3,7 +3,7 @@
           {worker_type, amqp_worker}], [
     {connect, "amqp://127.0.0.1:5672"},
     {loop, [{time, {1, min}},
-            {rate, {100, rps}}], [
+            {rate, {10, rps}}], [
       {publish, <<"q1">>, <<"hello">>}
     ]},
     {disconnect}
