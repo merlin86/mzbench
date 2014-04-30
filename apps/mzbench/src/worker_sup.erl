@@ -16,5 +16,4 @@ start_worker(Spec, Script, WorkerModule) ->
 
 init([]) ->
     AChild = {worker, {worker_runner, start_link, []}, temporary, 1000, worker, []},
-
-    {ok, {{simple_one_for_one, 100, 100}, [AChild]}}.
+    {ok, {{simple_one_for_one, 5, 1}, [AChild]}}.

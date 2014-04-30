@@ -11,7 +11,7 @@ start_link(ScriptFileName) ->
 
 init([ScriptFileName]) ->
     lager:info("[ director_sup ] I'm at ~p", [self()]),
-    {ok, {{one_for_one, 5, 1000}, [
+    {ok, {{one_for_one, 5, 1}, [
         ?CHILD(event_exporter, transient, []),
         ?CHILD(director, temporary, [self(), ScriptFileName])
     ]}}.
