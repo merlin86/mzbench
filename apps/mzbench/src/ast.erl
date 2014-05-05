@@ -1,9 +1,17 @@
 -module(ast).
 
--export([transform/1]).
+-export([transform/1, add_meta/2]).
 
 -include("types.hrl").
 -include("ast.hrl").
+
+-spec add_meta(abstract_expr(), [tuple()]) -> abstract_expr().
+add_meta(#operation{meta = Meta, args = Args} = Op, NewMeta) ->
+  Op#operation{meta = Meta ++ NewMeta, args = add_meta(Args, NewMeta)};
+add_meta([H | T], Meta) ->
+  [add_meta(H, Meta) | add_meta(T, Meta)];
+add_meta([], _) -> [];
+add_meta(C, _) -> C.
 
 -spec markup(abstract_expr()) -> abstract_expr().
 markup({tuple, Line, [{atom, L2, Op} | Params]}) ->

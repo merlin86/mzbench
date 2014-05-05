@@ -59,10 +59,10 @@ handle_cast({start_workers, SuperPid, Pool, Nodes}, #s{workers = Tid} = State) -
     Name = proplists:get_value(pool_name, Meta),
     [Size] = mproplists:get_value(size, PoolOpts, [undefined]),
     [WorkerModule] = mproplists:get_value(worker_type, PoolOpts, [undefined]),
-    WorkerOpts = [],
     utility:fold_interval(
         fun (N, [NextNode|T]) ->
-            Args = [NextNode, [{worker_id, N} | WorkerOpts], Script, WorkerModule, self()],
+            WorkerScript = ast:add_meta(Script, [{worker_id, N}]),
+            Args = [NextNode, WorkerScript, WorkerModule, self()],
             {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, Args),
             Ref = erlang:monitor(process, P),
             ets:insert(Tid, {P, Ref}),

@@ -1,19 +1,17 @@
 -module(worker_runner).
 
--export([start_link/5, run_worker_script/4]).
+-export([start_link/4, run_worker_script/3]).
 
 -include("types.hrl").
 -include("ast.hrl").
 
-start_link(Node, Spec, Script, WorkerModule, Pool) ->
-    {ok, proc_lib:spawn_link(Node, ?MODULE, run_worker_script, [Spec, Script, WorkerModule, Pool])}.
+start_link(Node, Script, WorkerModule, Pool) ->
+    {ok, proc_lib:spawn_link(Node, ?MODULE, run_worker_script, [Script, WorkerModule, Pool])}.
 
-%% Spec contains worker id
-%% Feel free to add anything else when necessary (launch timestamp, parent pid etc)
--spec run_worker_script(term(), [script_expr()], module(), Pool :: pid())
+-spec run_worker_script([script_expr()], module(), Pool :: pid())
     -> {ok, worker_state()}.
 
-run_worker_script(_Spec, Script, WorkerModule, Pool) ->
+run_worker_script(Script, WorkerModule, Pool) ->
     Res =
         try
             {WorkerResult, _WorkerResultState} = eval_expr(Script, WorkerModule:initial_state(), WorkerModule),
