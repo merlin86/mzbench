@@ -56,7 +56,8 @@ handle_cast({start_workers, SuperPid, Pool}, State) ->
     Name = proplists:get_value(pool_name, Meta),
     [Size] = mproplists:get_value(size, PoolOpts, [undefined]),
     [WorkerModule] = mproplists:get_value(worker_type, PoolOpts, [undefined]),
-    Workers = start_workers(SuperPid, Size, [[], Script, WorkerModule], []),
+    WorkerOpts = [],
+    Workers = start_workers(SuperPid, Size, WorkerOpts, Script, WorkerModule, []),
     lager:info("[ ~p ] Started ~p workers", [Name, Size]),
     {noreply, State#s{
         name    = Name,
@@ -89,10 +90,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-start_workers(SuperPid, N, [WorkerOpts, Script, WorkerModule], Res) when N > 0, is_integer(N) ->
+start_workers(SuperPid, N, WorkerOpts, Script, WorkerModule, Res) when N > 0, is_integer(N) ->
     {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, [[{worker_id, N} | WorkerOpts],
                                                                          Script, WorkerModule]),
     Ref = erlang:monitor(process, P),
-    start_workers(SuperPid, N-1, [WorkerOpts, Script, WorkerModule], [{P, Ref} | Res]);
-start_workers(_, _, _, Res) -> Res.
+    start_workers(SuperPid, N-1, WorkerOpts, Script, WorkerModule, [{P, Ref} | Res]);
+start_workers(_, _, _, _, _, Res) -> Res.
 
