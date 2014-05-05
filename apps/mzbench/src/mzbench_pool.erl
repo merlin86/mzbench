@@ -39,7 +39,7 @@ init([SuperPid, Pool, Nodes]) ->
     gen_server:cast(self(), {start_workers, SuperPid, Pool, Nodes}),
     {ok, #s{workers = Tid}}.
 
-handle_call(stop, _From, State = #s{workers = Tid, name = Name}) ->
+handle_call(stop, _From, #s{workers = Tid, name = Name} = State) ->
     lager:info("[ ~p ] Received stop signal", [Name]),
     ets:foldl(
         fun ({Pid, Ref}, Acc) ->
@@ -54,7 +54,7 @@ handle_call(Req, _From, State) ->
     lager:error("Unhandled call: ~p", [Req]),
     {stop, {unhandled_call, Req}, State}.
 
-handle_cast({start_workers, SuperPid, Pool, Nodes}, State = #s{workers = Tid}) ->
+handle_cast({start_workers, SuperPid, Pool, Nodes}, #s{workers = Tid} = State) ->
     #operation{name = pool, args = [PoolOpts, Script], meta = Meta} = Pool,
     Name = proplists:get_value(pool_name, Meta),
     [Size] = mproplists:get_value(size, PoolOpts, [undefined]),
@@ -75,7 +75,7 @@ handle_cast(Msg, State) ->
     lager:error("Unhandled cast: ~p", [Msg]),
     {stop, {unhandled_cast, Msg}, State}.
 
-handle_info({worker_result, Pid, Res}, State = #s{workers = Workers, name = Name}) ->
+handle_info({worker_result, Pid, Res}, #s{workers = Workers, name = Name} = State) ->
 
     maybe_report_error(Pid, Res),
 
@@ -88,7 +88,7 @@ handle_info({worker_result, Pid, Res}, State = #s{workers = Workers, name = Name
     end,
     maybe_stop(State);
 
-handle_info({'DOWN', _Ref, _, Pid, Reason}, State = #s{workers = Workers, name = Name}) ->
+handle_info({'DOWN', _Ref, _, Pid, Reason}, #s{workers = Workers, name = Name} = State) ->
     case ets:lookup(Workers, Pid) of
         [{Pid, Ref}] ->
             lager:error("[ ~p ] Received DOWN from worker ~p with reason ~p", [Name, Pid, Reason]),
@@ -114,7 +114,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-maybe_stop(State = #s{workers = Workers, name = Name}) ->
+maybe_stop(#s{workers = Workers, name = Name} = State) ->
     case ets:first(Workers) == '$end_of_table' of
         true ->
             lager:info("[ ~p ] All workers have finished", [Name]),
