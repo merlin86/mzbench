@@ -1,6 +1,6 @@
 -module(utility).
 
--export([choose/1, choose/2, random_bytes/1]).
+-export([choose/1, choose/2, random_bytes/1, fold_interval/4]).
 
 taken(L, N) ->
      Len = length(L),
@@ -20,3 +20,9 @@ choose(List) -> lists:nth(crypto:rand_uniform(1, length(List)), List).
 choose(N, List) -> taken(List, N).
 
 random_bytes(N) -> crypto:rand_bytes(N).
+
+fold_interval(_, Acc, Start, End) when Start > End -> Acc;
+fold_interval(Fun, Acc, Start, End) ->
+    fold_interval(Fun, Fun(Start, Acc), Start + 1, End).
+
+

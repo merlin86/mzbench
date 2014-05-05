@@ -60,8 +60,14 @@ handle_cast({start_workers, SuperPid, Pool, Nodes}, State = #s{workers = Tid}) -
     [Size] = mproplists:get_value(size, PoolOpts, [undefined]),
     [WorkerModule] = mproplists:get_value(worker_type, PoolOpts, [undefined]),
     WorkerOpts = [],
-    Workers = start_workers(SuperPid, Size, Nodes, WorkerOpts, Script, WorkerModule, self(), []),
-    true = ets:insert_new(Tid, Workers),
+    utility:fold_interval(
+        fun (N, [NextNode|T]) ->
+            Args = [NextNode, [{worker_id, N} | WorkerOpts], Script, WorkerModule, self()],
+            {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, Args),
+            Ref = erlang:monitor(process, P),
+            ets:insert(Tid, {P, Ref}),
+            T ++ [NextNode]
+        end, Nodes, 1, Size),
     lager:info("[ ~p ] Started ~p workers", [Name, Size]),
     {noreply, State#s{name = Name}};
 
@@ -107,13 +113,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-
-start_workers(SuperPid, N, [Node|Nodes], WorkerOpts, Script, WorkerModule, Pid, Res) when N > 0, is_integer(N) ->
-    {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, [Node, [{worker_id, N} | WorkerOpts],
-                                                                         Script, WorkerModule, Pid]),
-    Ref = erlang:monitor(process, P),
-    start_workers(SuperPid, N-1, Nodes ++ [Node], WorkerOpts, Script, WorkerModule, Pid, [{P, Ref} | Res]);
-start_workers(_, _, _, _, _, _, _, Res) -> Res.
 
 maybe_stop(State = #s{workers = Workers, name = Name}) ->
     case ets:first(Workers) == '$end_of_table' of
