@@ -97,7 +97,9 @@ read_script(ScriptFileName) ->
         {ok, Ts, _} ->
             {ok, [AST]} = erl_parse:parse_exprs(Ts),
             Script = ast:transform(AST),
-            {ok, Script};
+            RunId = make_run_id(ScriptFileName),
+            FinalScript = ast:add_meta(Script, [{run_id, RunId}]),
+            {ok, FinalScript};
         {error, {_, erl_parse, E}, _} ->
             lager:error("Parsing script file failed: ~p", [E]),
             {error, E};
@@ -155,4 +157,12 @@ alive_nodes(Nodes) ->
             net_adm:ping(N) == pong
         end, Nodes).
 
+-spec make_run_id(string()) -> string().
+make_run_id(ScriptName) ->
+    Name = filename:basename(ScriptName, ".erl"),
+    io_lib:format("~s-~s", [Name, iso_8601_fmt(erlang:localtime())]).
 
+iso_8601_fmt(DateTime) ->
+    {{Year,Month,Day},{Hour,Min,Sec}} = DateTime,
+    io_lib:format("~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ",
+        [Year, Month, Day, Hour, Min, Sec]).

@@ -112,5 +112,5 @@ consumer_loop(Channel) ->
     end.
 
 make_queue_name(Meta, Q) ->
-    RunId = proplists:get_value(run_id, Meta, <<"default">>),
+    RunId = list_to_binary(proplists:get_value(run_id, Meta, "default")),
     <<Q/binary, <<"-">>/binary, RunId/binary>>.
