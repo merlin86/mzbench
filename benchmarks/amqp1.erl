@@ -2,6 +2,7 @@
   {pool, [{size, 3},
           {worker_type, amqp_worker}], [
     {connect, "amqp://127.0.0.1:5672"},
+    {prepare, <<"q1">>},
     {loop, [{time, {1, min}},
             {rate, {10, rps}}], [
       {publish, <<"q1">>, <<"hello">>}

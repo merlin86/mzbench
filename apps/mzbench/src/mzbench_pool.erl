@@ -13,6 +13,7 @@
          code_change/3
         ]).
 
+-export([make_run_id/1]).
 -include("ast.hrl").
 
 -record(s, {
@@ -59,9 +60,11 @@ handle_cast({start_workers, SuperPid, Pool, Nodes}, #s{workers = Tid} = State) -
     Name = proplists:get_value(pool_name, Meta),
     [Size] = mproplists:get_value(size, PoolOpts, [undefined]),
     [WorkerModule] = mproplists:get_value(worker_type, PoolOpts, [undefined]),
+    RunId = make_run_id(WorkerModule),
     utility:fold_interval(
         fun (N, [NextNode|T]) ->
-            WorkerScript = ast:add_meta(Script, [{worker_id, N}]),
+            WorkerScript1 = ast:add_meta(Script, [{worker_id, N}]),
+            WorkerScript = ast:add_meta(WorkerScript1, [{run_id, RunId}]),
             Args = [NextNode, WorkerScript, WorkerModule, self()],
             {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, Args),
             Ref = erlang:monitor(process, P),
@@ -129,3 +132,8 @@ maybe_report_error(Pid, {error, Reason}) ->
 maybe_report_error(Pid, {exception, Node, {_C, E, ST}}) ->
     lager:error("Worker ~p on ~p has crashed: ~p~nStacktrace: ~p", [Pid, Node, E, ST]).
 
+make_run_id(WorkerModule) ->
+    {{Year,Month,Day},{Hour,Minutes,Seconds}} = erlang:localtime(),
+    TS = io_lib:format("~p-~p/~p/~p-~p:~p:~p", [WorkerModule, Year, Month, Day, Hour, Minutes, Seconds]),
+    Timestamp = list_to_binary(TS),
+    <<Timestamp/binary>>.
