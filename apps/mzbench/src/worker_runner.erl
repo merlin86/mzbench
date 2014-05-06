@@ -47,14 +47,9 @@ eval_function(#operation{name = loop} = Op, State, WorkerModule) ->
   [LoopSpec, Body] = Op#operation.args,
   [#constant{value = Rate, units = rps}] = mproplists:get_value(rate, LoopSpec, [#constant{value = undefined, units = rps}]),
   [#constant{value = Time, units = ms}] = mproplists:get_value(time, LoopSpec, [#constant{value = undefined, units = ms}]),
-  Interval = if
-               Rate == undefined -> 0;
-               Rate == 0 -> undefined;
-               true -> 1000/Rate
-             end,
   if
-    Interval == undefined -> {nil, State};
-    true -> timerun(msnow(), Time, trunc(Interval), Body, State, WorkerModule)
+    Rate == 0 -> {nil, State};
+    true -> timerun(msnow(), Time, 0, Rate, Body, State, WorkerModule)
   end;
 eval_function(#operation{name = choose, args = [N, List]}, _, _) -> utility:choose(N, List);
 eval_function(#operation{name = choose, args = List}, _, _) -> utility:choose(List);
@@ -69,16 +64,21 @@ msnow() ->
   {MegaSecs, Secs, MicroSecs} = erlang:now(),
   trunc(MegaSecs * 1000000000 + Secs * 1000 + MicroSecs / 1000).
 
-timerun(Start, Time, Interval, Expr, State, WorkerModule) ->
+timerun(Start, Time, Done, Rate, Expr, State, WorkerModule) ->
   LocalStart = msnow(),
   if
     (Time =/= undefined) and (Time + Start =< LocalStart) -> {nil, State};
     true ->
       {_, NextState} = eval_expr(Expr, State, WorkerModule),
-      Remain = LocalStart + Interval - msnow(),
-      if
-        Remain > 0 -> timer:sleep(Remain);
-        true -> ok
+      case Rate of
+        undefined -> ok;
+        _ ->
+          ShouldBe = (Done + 1)*1000/Rate,
+          Remain = Start + trunc(ShouldBe) - msnow(),
+          if
+            Remain > 0 -> timer:sleep(Remain);
+            true -> ok
+          end
       end,
-    timerun(Start, Time, Interval, Expr, NextState, WorkerModule)
+      timerun(Start, Time, Done+1, Rate, Expr, NextState, WorkerModule)
   end.
