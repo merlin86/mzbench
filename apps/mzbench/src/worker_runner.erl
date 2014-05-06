@@ -2,6 +2,9 @@
 
 -export([start_link/4, run_worker_script/3]).
 
+% For Common and EUnit tests
+-export([eval_expr/3]).
+
 -include("types.hrl").
 -include("ast.hrl").
 

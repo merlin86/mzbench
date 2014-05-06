@@ -105,12 +105,14 @@ all() ->
 %%--------------------------------------------------------------------
 
 nonempty(_Config) ->
-    worker_runner:run_worker_script(0, [#operation{name = print, args = ["Hello"]}], dummy_worker),
+    worker_runner:eval_expr([#operation{name = print, args = ["Hello"]}],
+                            dummy_worker:initial_state(), dummy_worker),
     true = (get_folsom_data() =/= []),
     ok.
 
 empty(_Config) ->
-    worker_runner:run_worker_script(0, [], dummy_worker),
+    worker_runner:eval_expr([],
+                            dummy_worker:initial_state(), dummy_worker),
     true = (get_folsom_data() == []),
     ok.
 
