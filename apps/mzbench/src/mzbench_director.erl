@@ -160,7 +160,7 @@ alive_nodes(Nodes) ->
 -spec make_run_id(string()) -> string().
 make_run_id(ScriptName) ->
     Name = filename:basename(ScriptName, ".erl"),
-    io_lib:format("~s-~s", [Name, iso_8601_fmt(erlang:localtime())]).
+    lists:flatten(io_lib:format("~s-~s", [Name, iso_8601_fmt(erlang:localtime())])).
 
 iso_8601_fmt(DateTime) ->
     {{Year,Month,Day},{Hour,Min,Sec}} = DateTime,

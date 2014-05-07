@@ -3,7 +3,7 @@
 -export([connect/3, disconnect/2,
          declare_exchange/3, declare_queue/3, bind/5,
          publish/4, publish/5, get/3, subscribe/3]).
--export([consumer/1, consumer_loop/1]).
+-export([consumer/2, consumer_loop/2]).
 
 -include_lib("amqp_client/include/amqp_client.hrl").
 
@@ -15,6 +15,11 @@
     consumer_pid     = undefined,
     subscription_tag = undefined,
     queue            = undefined
+}).
+
+-record(payload, {
+    data      = <<>>         :: binary(),
+    timestamp = erlang:now() :: erlang:now()
 }).
 
 initial_state() -> #s{}.
@@ -60,7 +65,9 @@ publish(State, Meta, RoutingKey, Payload) ->
 publish(State, Meta, X, RoutingKey, Payload) ->
     Channel = State#s.channel,
     Publish = #'basic.publish'{exchange = X, routing_key = add_postfix(Meta, RoutingKey)},
-    ok = amqp_channel:call(Channel, Publish, #amqp_msg{payload = Payload}),
+    Binary = erlang:term_to_binary(#payload{data = Payload}),
+    ok = amqp_channel:call(Channel, Publish, #amqp_msg{payload = Binary}),
+    notify_counter(Meta),
     {nil, State}.
 
 get(State, Meta, InQ) ->
@@ -70,7 +77,10 @@ get(State, Meta, InQ) ->
     Response = amqp_channel:call(Channel, Get),
     case Response of
         {#'basic.get_ok'{}, Content} ->
-            #amqp_msg{payload = _Payload} = Content;
+            #amqp_msg{payload = Payload} = Content,
+            #payload{timestamp = Now1} = erlang:binary_to_term(Payload),
+            notify_counter(Meta),
+            notify_roundtrip(Meta, timer:now_diff(erlang:now(), Now1));
         #'basic.get_empty'{} ->
             nop
     end,
@@ -79,27 +89,31 @@ get(State, Meta, InQ) ->
 subscribe(State, Meta, InQ) ->
     Q = add_postfix(Meta, InQ),
     Channel = State#s.channel,
-    Consumer = spawn_link(?MODULE, consumer, [Channel]),
+    Consumer = spawn_link(?MODULE, consumer, [Channel, Meta]),
     Sub = #'basic.consume'{queue = Q},
     #'basic.consume_ok'{consumer_tag = Tag} = amqp_channel:subscribe(Channel, Sub, Consumer),
     {Consumer, State#s{consumer_pid = Consumer, subscription_tag = Tag}}.
 
-consumer(Channel) ->
+consumer(Channel, Meta) ->
     erlang:monitor(process, Channel),
-    consumer_loop(Channel).
+    consumer_loop(Channel, Meta).
 
 %% Internal functions
-consumer_loop(Channel) ->
+consumer_loop(Channel, Meta) ->
     receive
         #'basic.consume_ok'{} ->
-            ?MODULE:consumer_loop(Channel);
+            ?MODULE:consumer_loop(Channel, Meta);
 
         #'basic.cancel_ok'{} ->
             ok;
 
-        {#'basic.deliver'{delivery_tag = Tag}, _Content} ->
+        {#'basic.deliver'{delivery_tag = Tag}, Content} ->
+            #amqp_msg{payload = Payload} = Content,
+            #payload{timestamp = Now1} = erlang:binary_to_term(Payload),
+            notify_counter(Meta),
+            notify_roundtrip(Meta, timer:now_diff(erlang:now(), Now1)),
             amqp_channel:call(Channel, #'basic.ack'{delivery_tag = Tag}),
-            ?MODULE:consumer_loop(Channel);
+            ?MODULE:consumer_loop(Channel, Meta);
 
         {'DOWN', _, _, _, _} ->
             ok
@@ -108,4 +122,10 @@ consumer_loop(Channel) ->
 add_postfix(Meta, S) when is_binary(S) ->
     RunId = list_to_binary(proplists:get_value(run_id, Meta, "default")),
     <<S/binary, "-", RunId/binary>>.
+
+notify_counter(Meta) ->
+    folsom_metrics:notify(proplists:get_value(metric_prefix, Meta) ++ ".counter", {inc, 1}, counter).
+
+notify_roundtrip(Meta, Value) ->
+    folsom_metrics:notify(proplists:get_value(metric_prefix, Meta) ++ ".roundtrip", Value, histogram).
 
