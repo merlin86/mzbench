@@ -1,13 +1,13 @@
 -module(amqp_worker).
 -export([initial_state/0]).
--export([connect/3, disconnect/2, prepare/3,
+-export([connect/3, disconnect/2,
          declare_exchange/3, declare_queue/3, bind/5,
          publish/4, publish/5, get/3, subscribe/3]).
 -export([consumer/1, consumer_loop/1]).
 
 -include_lib("amqp_client/include/amqp_client.hrl").
 
--define(DEFAULT_X, <<"MZBENCH">>).
+-define(DEFAULT_X, <<>>).
 
 -record(s, {
     connection       = undefined,
@@ -35,14 +35,8 @@ disconnect(#s{connection = Connection, channel = Channel,
     amqp_connection:close(Connection),
     {nil, initial_state()}.
 
-prepare(State, Meta, InQ) ->
-    {_, State1} = declare_exchange(State, Meta, ?DEFAULT_X),
-    {_, State2} = declare_queue(State1, Meta, InQ),
-    {_, State3} = bind(State2, Meta, ?DEFAULT_X, InQ, InQ),
-    {nil, State3}.
-
 declare_queue(State, Meta, InQ) ->
-    Q = make_queue_name(Meta, InQ),
+    Q = add_postfix(Meta, InQ),
     Channel = State#s.channel,
     Declare = #'queue.declare'{queue = Q, auto_delete = true},
     #'queue.declare_ok'{} = amqp_channel:call(Channel, Declare),
@@ -55,22 +49,22 @@ declare_exchange(State, _Meta, X) ->
     {nil, State}.
 
 bind(State, Meta, X, RoutingKey, InQ) ->
-    Q = make_queue_name(Meta, InQ),
+    Q = add_postfix(Meta, InQ),
     Channel = State#s.channel,
-    amqp_channel:call(Channel, #'queue.bind'{queue = Q, exchange = X, routing_key = RoutingKey}),
+    amqp_channel:call(Channel, #'queue.bind'{queue = Q, exchange = X, routing_key = add_postfix(Meta, RoutingKey)}),
     {nil, State}.
 
 publish(State, Meta, RoutingKey, Payload) ->
     publish(State, Meta, ?DEFAULT_X, RoutingKey, Payload).
 
-publish(State, _Meta, X, RoutingKey, Payload) ->
+publish(State, Meta, X, RoutingKey, Payload) ->
     Channel = State#s.channel,
-    Publish = #'basic.publish'{exchange = X, routing_key = RoutingKey},
+    Publish = #'basic.publish'{exchange = X, routing_key = add_postfix(Meta, RoutingKey)},
     ok = amqp_channel:call(Channel, Publish, #amqp_msg{payload = Payload}),
     {nil, State}.
 
 get(State, Meta, InQ) ->
-    Q = make_queue_name(Meta, InQ),
+    Q = add_postfix(Meta, InQ),
     Channel = State#s.channel,
     Get = #'basic.get'{queue = Q, no_ack = true},
     Response = amqp_channel:call(Channel, Get),
@@ -83,7 +77,7 @@ get(State, Meta, InQ) ->
     {nil, State}.
 
 subscribe(State, Meta, InQ) ->
-    Q = make_queue_name(Meta, InQ),
+    Q = add_postfix(Meta, InQ),
     Channel = State#s.channel,
     Consumer = spawn_link(?MODULE, consumer, [Channel]),
     Sub = #'basic.consume'{queue = Q},
@@ -111,6 +105,7 @@ consumer_loop(Channel) ->
             ok
     end.
 
-make_queue_name(Meta, Q) ->
+add_postfix(Meta, S) when is_binary(S) ->
     RunId = list_to_binary(proplists:get_value(run_id, Meta, "default")),
-    <<Q/binary, <<"-">>/binary, RunId/binary>>.
+    <<S/binary, "-", RunId/binary>>.
+
