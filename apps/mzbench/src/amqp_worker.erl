@@ -43,7 +43,7 @@ disconnect(#s{connection = Connection, channel = Channel,
 declare_queue(State, Meta, InQ) ->
     Q = add_postfix(Meta, InQ),
     Channel = State#s.channel,
-    Declare = #'queue.declare'{queue = Q, auto_delete = true},
+    Declare = #'queue.declare'{queue = Q, auto_delete = true, arguments = [{<<"x-expires">>, long, 60000}]},
     #'queue.declare_ok'{} = amqp_channel:call(Channel, Declare),
     {nil, State}.
 
