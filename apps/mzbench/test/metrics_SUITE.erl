@@ -10,7 +10,7 @@
     init_per_testcase/2, end_per_testcase/2]).
 
 %% Test cases
--export([nonempty/1, empty/1]).
+-export([nonempty/1, empty/1, sample_metrics/1]).
 
 %%--------------------------------------------------------------------
 %% COMMON TEST CALLBACK FUNCTIONS
@@ -97,7 +97,7 @@ end_per_testcase(_Case, _Config) ->
 %%              are to be executed.
 %%--------------------------------------------------------------------
 all() ->
-    [empty, nonempty].
+    [empty, nonempty, sample_metrics].
 
 
 %%--------------------------------------------------------------------
@@ -112,6 +112,12 @@ nonempty(_Config) ->
 
 empty(_Config) ->
     worker_runner:eval_expr([],
+                            dummy_worker:initial_state(), dummy_worker),
+    true = (get_folsom_data() == []),
+    ok.
+
+sample_metrics(_Config) ->
+    worker_runner:eval_expr([#operation{name = print, args = ["Hello"], meta = [{sample_metrics, 0}]}],
                             dummy_worker:initial_state(), dummy_worker),
     true = (get_folsom_data() == []),
     ok.

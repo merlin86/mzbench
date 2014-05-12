@@ -58,10 +58,11 @@ handle_cast({start_workers, SuperPid, Pool, Nodes}, #s{workers = Tid} = State) -
     #operation{name = pool, args = [PoolOpts, Script], meta = Meta} = Pool,
     Name = proplists:get_value(pool_name, Meta),
     [Size] = mproplists:get_value(size, PoolOpts, [undefined]),
+    [SampleMetrics] = mproplists:get_value(sample_metrics, PoolOpts, [1]),
     [WorkerModule] = mproplists:get_value(worker_type, PoolOpts, [undefined]),
     utility:fold_interval(
         fun (N, [NextNode|T]) ->
-            WorkerScript = ast:add_meta(Script, [{worker_id, N}]),
+            WorkerScript = ast:add_meta(Script, [{worker_id, N}, {sample_metrics, SampleMetrics}]),
             WorkerScript2 = ast:map_meta(
                 fun (M, Op) ->
                     RunId = proplists:get_value(run_id, M),
