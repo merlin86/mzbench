@@ -61,12 +61,18 @@ code_change(_OldVsn, State, _Extra) ->
 tick(_State) ->
     Metrics = folsom_metrics:get_metrics(),
     Values = get_values(Metrics),
-    lager:info("[ event_exporter ] Got ~p", [Values]).
+    lager:info("[ event_exporter ] Got ~p", [Values]),
+    send_to_graphite(Values),
+    lager:info("Values sent to graphite").
+
+send_to_graphite(_Values) ->
+    {ok, GraphiteClient} = graphite_client_sup:get_client(),
+    {Mega, Secs, _} = now(),
+    Timestamp = Mega * 1000000 + Secs,
+    Msg = "system.loadavg_666min 1.0 " ++ integer_to_list(Timestamp) ++ "\n",
+    lager:info("Sending message ~p", [Msg]),
+    graphite_client:send(GraphiteClient, Msg).
 
 get_values(Metrics) ->
-    get_values(Metrics, []).
-
-get_values([], V) ->
-    V;
-get_values([H | T], V) ->
-    get_values(T, [{H, folsom_metrics:get_metric_value(H)} | V]).
+    lists:map(fun(X) -> {X, folsom_metrics:get_metric_value(X)} end,
+              Metrics).

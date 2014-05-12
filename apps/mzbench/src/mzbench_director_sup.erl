@@ -27,13 +27,14 @@ stop(Pid) ->
 init([ScriptFileName, Nodes]) ->
     lager:info("[ director_sup ] I'm at ~p", [self()]),
     {ok, {{one_for_one, 5, 1}, [
-        child_spec(event_exporter, transient, []),
-        child_spec(mzbench_director, temporary, [self(), ScriptFileName, Nodes])
+        child_spec(supervisor, graphite_client_sup, transient, []),
+        child_spec(worker, event_exporter, transient, []),
+        child_spec(worker, mzbench_director, temporary, [self(), ScriptFileName, Nodes])
     ]}}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
-child_spec(I, Restart, Args) ->
-    {I, {I, start_link, Args}, Restart, 1000, worker, [I]}.
+child_spec(WorkerOrSupervisor, I, Restart, Args) ->
+    {I, {I, start_link, Args}, Restart, 1000, WorkerOrSupervisor, [I]}.
