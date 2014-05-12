@@ -1,4 +1,4 @@
--module(event_exporter).
+-module(mzbench_metrics).
 
 -export([start_link/0]).
 
