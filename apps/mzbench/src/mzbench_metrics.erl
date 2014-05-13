@@ -1,6 +1,7 @@
 -module(mzbench_metrics).
 
--export([start_link/0]).
+-export([start_link/1,
+         get_metrics_values/1]).
 
 -behaviour(gen_server).
 -export([init/1,
@@ -11,7 +12,8 @@
          code_change/3]).
 
 -record(s, {
-    last_export = undefined
+    prefix      = "undefined" :: string(),
+    last_export = undefined   :: erlang:now()
 }).
 
 -define(INTERVAL, 10000). % 10 seconds
@@ -20,17 +22,17 @@
 %%% API
 %%%===================================================================
 
-start_link() ->
-    gen_server:start_link(?MODULE, [], []).
+start_link(MetricsPrefix) ->
+    gen_server:start_link(?MODULE, [MetricsPrefix], []).
 
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
-init([]) ->
+init([MetricsPrefix]) ->
     process_flag(trap_exit, true),
     erlang:send_after(?INTERVAL, self(), trigger),
-    {ok, #s{}}.
+    {ok, #s{prefix = MetricsPrefix}}.
 
 handle_call(Req, _From, State) ->
     lager:error("Unhandled call: ~p", [Req]),
@@ -58,11 +60,33 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-tick(_State) ->
-    Metrics = folsom_metrics:get_metrics(),
-    Values = get_values(Metrics),
-    lager:info("[ event_exporter ] Got ~p", [Values]),
-    send_to_graphite(Values).
+tick(#s{prefix = Prefix} = _State) ->
+    Metrics = lists:filter(fun (M) -> lists:prefix(Prefix, M) end, folsom_metrics:get_metrics()),
+    lager:info("[ metrics ] Got the following metrics: ~p", [Metrics]),
+
+    Values = lists:foldl(
+        fun (N, Acc) ->
+            case rpc:call(N, mzbench_metrics, get_metrics_values, [Metrics]) of
+                {badrpc, Reason} ->
+                    lager:error("Failed to request metrics from node ~p (~p)", [N, Reason]),
+                    Acc;
+                Res ->
+                    lager:info("Received metrics from ~p", [N]),
+                    merge_metrics(Res, Acc)
+            end
+        end, [], [node()|nodes()]),
+
+    send_to_graphite(Values),
+
+    ok.
+
+How to merge it??
+
+merge_metrics([], Metrics) -> Metrics;
+merge_metrics([{M, V}|T], Metrics) when is_list(V) ->
+    merge_metrics(T, lists:keystore(M, 1, Metrics, {M, V ++ proplists:get_value(M, Metrics, [])}));
+merge_metrics([{M, V}|T], Metrics) when is_integer(V) ->
+    merge_metrics(T, lists:keystore(M, 1, Metrics, {M, V + proplists:get_value(M, Metrics, 0)})).
 
 send_to_graphite(Values) ->
     case graphite_client_sup:get_client() of
@@ -79,8 +103,9 @@ send_to_graphite(Values) ->
         Error -> lager:error("Could not get graphite client: ~p", [Error])
     end.
 
-get_values(Metrics) ->
-    lists:flatmap(
+
+get_metrics_values(Metrics) ->
+    Values = lists:flatmap(
       fun(X) ->
           case lists:suffix("roundtrip", X) of
               false -> [{X, folsom_metrics:get_metric_value(X)}];
@@ -92,4 +117,8 @@ get_values(Metrics) ->
                     proplists:get_value(95, proplists:get_value(percentile, Stats))}]
           end
       end,
-      Metrics).
+      Metrics),
+    lists:foreach(fun folsom_metrics:delete_metric/1, Metrics),
+    Values.
+
+

@@ -23,16 +23,10 @@
 %%% API
 %%%===================================================================
 
-start_link(SuperPid, ScriptFileName, Nodes) ->
-    lager:info("[ director ] Loading ~p", [ScriptFileName]),
-    case read_script(ScriptFileName) of
-        {ok, Script} ->
-            case extract_pools(Script) of
-                {ok, Pools} ->
-                    gen_server:start_link(?MODULE, [SuperPid, Pools, Nodes], []);
-                {error, E} ->
-                    {error, {shutdown, E}}
-            end;
+start_link(SuperPid, Script, Nodes) ->
+    case extract_pools(Script) of
+        {ok, Pools} ->
+            gen_server:start_link(?MODULE, [SuperPid, Pools, Nodes], []);
         {error, E} ->
             {error, {shutdown, E}}
     end.
@@ -90,24 +84,6 @@ start_pools(SuperPid, [Pool | Pools], Nodes, Acc)->
     Ref = erlang:monitor(process, Pid),
     start_pools(SuperPid, Pools, Nodes, [{Pid, Ref} | Acc]).
 
--spec read_script(string()) -> {ok, [script_expr()]} | {error, any()}.
-read_script(ScriptFileName) ->
-    {ok, Contents} = file:read_file(ScriptFileName),
-    case erl_scan:string(binary_to_list(Contents)) of
-        {ok, Ts, _} ->
-            {ok, [AST]} = erl_parse:parse_exprs(Ts),
-            Script = ast:transform(AST),
-            RunId = make_run_id(ScriptFileName),
-            FinalScript = ast:add_meta(Script, [{run_id, RunId}]),
-            {ok, FinalScript};
-        {error, {_, erl_parse, E}, _} ->
-            lager:error("Parsing script file failed: ~p", [E]),
-            {error, E};
-        A ->
-            lager:error("Reading script file failed: ~p", [A]),
-            {error, A}
-    end.
-
 -spec extract_pools([script_expr()]) -> {ok, [#operation{}]} | {error, any()}.
 extract_pools(Script) ->
     Pools = lists:zipwith(fun(Number, #operation{name = pool, meta = Meta} = Op) ->
@@ -157,12 +133,3 @@ alive_nodes(Nodes) ->
             net_adm:ping(N) == pong
         end, Nodes).
 
--spec make_run_id(string()) -> string().
-make_run_id(ScriptName) ->
-    Name = filename:basename(ScriptName, ".erl"),
-    lists:flatten(io_lib:format("~s-~s", [Name, iso_8601_fmt(erlang:localtime())])).
-
-iso_8601_fmt(DateTime) ->
-    {{Year,Month,Day},{Hour,Min,Sec}} = DateTime,
-    io_lib:format("~4.10.0B-~2.10.0B-~2.10.0BT~2.10.0B:~2.10.0B:~2.10.0BZ",
-        [Year, Month, Day, Hour, Min, Sec]).
