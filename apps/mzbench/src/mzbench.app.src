@@ -10,5 +10,6 @@
                   folsom
                  ]},
   {mod, { mzbench_app, []}},
-  {env, []}
+  {env, [{graphite_host, "localhost"},
+         {graphite_port, 2003}]}
  ]}.

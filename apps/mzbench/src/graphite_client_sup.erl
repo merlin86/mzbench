@@ -19,8 +19,7 @@
 
 %% api
 get_client() ->
-    % case start_client(get_env(graphite_host), get_env(graphite_port)) of
-    case start_client("localhost", 2003) of
+    case start_client(get_env(graphite_host), get_env(graphite_port)) of
         {error, {already_started, Pid}} -> {ok, Pid};
         {ok, Pid} -> {ok, Pid};
         {error, Reason} -> {error, Reason}
