@@ -19,6 +19,18 @@ make run
 (erlsh)> mzbench_sup:run("benchmarks/dummy1.erl").
 ```
 
+## Configuring statistics export to graphite
+
+You can customize graphite address and port in env section of
+apps/mzbench/src/mzbench.app.src:
+
+```
+  ...
+  {env, [{graphite_host, "localhost"},
+         {graphite_port, 2003}]}
+  ...
+```
+
 ## How to add a new worker
 
 Workers are implemented as erlang modules that export `initial_state/0` and
