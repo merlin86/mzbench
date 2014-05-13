@@ -67,7 +67,7 @@ publish(State, Meta, X, RoutingKey, Payload) ->
     Publish = #'basic.publish'{exchange = X, routing_key = add_postfix(Meta, RoutingKey)},
     Binary = erlang:term_to_binary(#payload{data = Payload}),
     ok = amqp_channel:call(Channel, Publish, #amqp_msg{payload = Binary}),
-    metrics:notify_counter(Meta),
+    mzbench_metrics:notify_counter(Meta),
     {nil, State}.
 
 get(State, Meta, InQ) ->
@@ -79,8 +79,8 @@ get(State, Meta, InQ) ->
         {#'basic.get_ok'{}, Content} ->
             #amqp_msg{payload = Payload} = Content,
             #payload{timestamp = Now1} = erlang:binary_to_term(Payload),
-            metrics:notify_counter(Meta),
-            metrics:notify_roundtrip(Meta, timer:now_diff(erlang:now(), Now1));
+            mzbench_metrics:notify_counter(Meta),
+            mzbench_metrics:notify_roundtrip(Meta, timer:now_diff(erlang:now(), Now1));
         #'basic.get_empty'{} ->
             nop
     end,
@@ -110,8 +110,8 @@ consumer_loop(Channel, Meta) ->
         {#'basic.deliver'{delivery_tag = Tag}, Content} ->
             #amqp_msg{payload = Payload} = Content,
             #payload{timestamp = Now1} = erlang:binary_to_term(Payload),
-            metrics:notify_counter(Meta),
-            metrics:notify_roundtrip(Meta, timer:now_diff(erlang:now(), Now1)),
+            mzbench_metrics:notify_counter(Meta),
+            mzbench_metrics:notify_roundtrip(Meta, timer:now_diff(erlang:now(), Now1)),
             amqp_channel:call(Channel, #'basic.ack'{delivery_tag = Tag}),
             ?MODULE:consumer_loop(Channel, Meta);
 
