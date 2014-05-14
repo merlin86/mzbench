@@ -69,7 +69,8 @@ send_to_graphite(Values) ->
     {Mega, Secs, _} = now(),
     Timestamp = Mega * 1000000 + Secs,
     lists:map(fun({MetricName, MetricValue}) ->
-                  Msg = lists:flatten(io_lib:format("mzbench.~s ~p ~p~n", [MetricName, MetricValue, Timestamp])),
+                  Msg = lists:flatten(io_lib:format("~s ~p ~p~n",
+                                                    [MetricName, MetricValue, Timestamp])),
                   graphite_client:send(GraphiteClient, Msg)
               end,
               Values).

@@ -67,7 +67,7 @@ publish(State, Meta, X, RoutingKey, Payload) ->
     Publish = #'basic.publish'{exchange = X, routing_key = add_postfix(Meta, RoutingKey)},
     Binary = erlang:term_to_binary(#payload{data = Payload}),
     ok = amqp_channel:call(Channel, Publish, #amqp_msg{payload = Binary}),
-    notify_counter(Meta),
+    metrics:notify_counter(Meta),
     {nil, State}.
 
 get(State, Meta, InQ) ->
@@ -79,8 +79,8 @@ get(State, Meta, InQ) ->
         {#'basic.get_ok'{}, Content} ->
             #amqp_msg{payload = Payload} = Content,
             #payload{timestamp = Now1} = erlang:binary_to_term(Payload),
-            notify_counter(Meta),
-            notify_roundtrip(Meta, timer:now_diff(erlang:now(), Now1));
+            metrics:notify_counter(Meta),
+            metrics:notify_roundtrip(Meta, timer:now_diff(erlang:now(), Now1));
         #'basic.get_empty'{} ->
             nop
     end,
@@ -110,8 +110,8 @@ consumer_loop(Channel, Meta) ->
         {#'basic.deliver'{delivery_tag = Tag}, Content} ->
             #amqp_msg{payload = Payload} = Content,
             #payload{timestamp = Now1} = erlang:binary_to_term(Payload),
-            notify_counter(Meta),
-            notify_roundtrip(Meta, timer:now_diff(erlang:now(), Now1)),
+            metrics:notify_counter(Meta),
+            metrics:notify_roundtrip(Meta, timer:now_diff(erlang:now(), Now1)),
             amqp_channel:call(Channel, #'basic.ack'{delivery_tag = Tag}),
             ?MODULE:consumer_loop(Channel, Meta);
 
@@ -122,10 +122,4 @@ consumer_loop(Channel, Meta) ->
 add_postfix(Meta, S) when is_binary(S) ->
     RunId = list_to_binary(proplists:get_value(run_id, Meta, "default")),
     <<S/binary, "-", RunId/binary>>.
-
-notify_counter(Meta) ->
-    folsom_metrics:notify(proplists:get_value(metric_prefix, Meta) ++ ".counter", {inc, 1}, counter).
-
-notify_roundtrip(Meta, Value) ->
-    folsom_metrics:notify(proplists:get_value(metric_prefix, Meta) ++ ".roundtrip", Value, histogram).
 
