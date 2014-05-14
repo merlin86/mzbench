@@ -69,12 +69,23 @@ send_to_graphite(Values) ->
     {Mega, Secs, _} = now(),
     Timestamp = Mega * 1000000 + Secs,
     lists:map(fun({MetricName, MetricValue}) ->
-                  Msg = lists:flatten(io_lib:format("~s ~p ~p~n",
-                                                    [MetricName, MetricValue, Timestamp])),
-                  graphite_client:send(GraphiteClient, Msg)
+                      Msg =lists:flatten(io_lib:format("~s ~p ~p~n",
+                                                       [MetricName, MetricValue, Timestamp])),
+                      graphite_client:send(GraphiteClient, Msg)
               end,
               Values).
 
 get_values(Metrics) ->
-    lists:map(fun(X) -> {X, folsom_metrics:get_metric_value(X)} end,
-              Metrics).
+    lists:flatmap(
+      fun(X) ->
+          case lists:suffix("roundtrip", X) of
+              false -> [{X, folsom_metrics:get_metric_value(X)}];
+              true ->
+                  Stats = folsom_metrics:get_histogram_statistics(X),
+                  [{X ++ ".mean",
+                    proplists:get_value(arithmetic_mean, Stats)},
+                   {X ++ ".95percentile",
+                    proplists:get_value(95, proplists:get_value(percentile, Stats))}]
+          end
+      end,
+      Metrics).
