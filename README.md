@@ -90,15 +90,15 @@ Operations for dummy_worker:
 
 dummy_worker script example:
 ```
-[{pool, [{size, 3},
+[{pool, [{size, 3}, %% two equal workers will execute the same body
          {worker_type, dummy_worker}],
-  [{loop, [{time, {5, sec}},
+  [{loop, [{time, {5, sec}}, %% loop with time and rate limit
            {rate, {1, rps}}],
-    [{print, "FOO"}]}]},
+    [{print, "FOO"}]}]}, %% dummy_worker operation call
 
- {pool, [{size, 2},
+ {pool, [{size, 2}, %% another pool
          {worker_type, dummy_worker}],
-  [{print, "OHAI"},
+  [{print, "OHAI"}, %% sequence of dummy_worker operations
    {print, "BAR"},
    {print, "QUUX"}]}
 ].
@@ -122,14 +122,14 @@ amqp_worker script example:
 [
   {pool, [{size, 3},
           {worker_type, amqp_worker}], [
-    {connect, "amqp://127.0.0.1:5672"},
-    {declare_queue, <<"q3">>},
+    {connect, "amqp://127.0.0.1:5672"}, %% amqp server address
+    {declare_queue, <<"q3">>}, %% queue name
     {subscribe, <<"q3">>},
-    {loop, [{time, {1, min}},
+    {loop, [{time, {1, min}}, %% this loop will try execute its body ({publish,...} tuple) about 6000 times in a minute
             {rate, {100, rps}}], [
-      {publish, <<"q3">>, <<"hello">>}
+      {publish, <<"q3">>, <<"hello">>} %% worker operation call
     ]},
-    {disconnect}
+    {disconnect} %% close connection to amqp
   ]}
 ].
 ```
