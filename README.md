@@ -90,7 +90,7 @@ Operations for dummy_worker:
 
 dummy_worker script example:
 ```
-[{pool, [{size, 3}, %% two equal workers will execute the same body
+[{pool, [{size, 3}, %% three equal workers will execute the same body
          {worker_type, dummy_worker}],
   [{loop, [{time, {5, sec}}, %% loop with time and rate limit
            {rate, {1, rps}}],
