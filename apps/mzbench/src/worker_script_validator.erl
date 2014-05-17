@@ -20,22 +20,28 @@ validate_worker_script(Script, WorkerModule) ->
 
 -spec validate_expr(#operation{}, [tuple()], module()) -> [string()].
 validate_expr(#operation{} = Op, WorkerFns, WorkerModule) ->
+    Meta = Op#operation.meta,
+    LocInfo = fun() -> case proplists:get_value(line, Meta) of
+                           undefined -> "";
+                           LineNumber -> "line " ++ integer_to_list(LineNumber) ++ ": "
+                       end
+              end,
     case Op of
-        #operation{name = undefined} -> ["Empty instruction."];
+        #operation{name = undefined} -> [LocInfo() ++ "Empty instruction."];
         #operation{name = loop, args = [Spec, Body]} ->
             validate_loopspec(Spec) ++
             lists:flatmap(fun(Expr) ->
                                   validate_expr(Expr, WorkerFns, WorkerModule)
                           end,
                           Body);
-        #operation{name = loop} -> ["Loop must have a spec and a body."];
+        #operation{name = loop} -> [LocInfo() ++ "Loop must have a spec and a body."];
         _ ->
             Fn = Op#operation.name,
             Arity = length(Op#operation.args) + 2,
             case lists:member({Fn, Arity}, WorkerFns) of
                 true -> [];
                 false ->
-                    [lists:flatten(io_lib:format("Unknown function ~p:~p/~p", [WorkerModule, Fn, Arity]))]
+                    [lists:flatten(io_lib:format(LocInfo() ++ "Unknown function ~p:~p/~p", [WorkerModule, Fn, Arity]))]
             end
     end;
 validate_expr(_, _, _) -> [].
