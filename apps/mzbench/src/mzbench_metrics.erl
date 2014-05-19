@@ -28,10 +28,22 @@ start_link(MetricsPrefix) ->
     gen_server:start_link(?MODULE, [MetricsPrefix], []).
 
 notify_counter(Meta) ->
-    folsom_metrics:notify(proplists:get_value(metric_prefix, Meta) ++ ".counter", {inc, 1}, counter).
+    SampleMetrics = proplists:get_value(sample_metrics, Meta, 1),
+    Prefix = extract_metric_prefix(Meta),
+    notify(
+                Prefix ++ ".counter",
+                {inc, 1},
+                counter,
+                SampleMetrics).
 
 notify_roundtrip(Meta, Value) ->
-    folsom_metrics:notify(proplists:get_value(metric_prefix, Meta) ++ ".roundtrip", Value, histogram).
+    SampleMetrics = proplists:get_value(sample_metrics, Meta, 1),
+    Prefix = extract_metric_prefix(Meta),
+    notify(
+      Prefix ++ ".roundtrip",
+      Value,
+      histogram,
+      SampleMetrics).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -69,32 +81,35 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 tick(#s{prefix = Prefix} = _State) ->
-    Metrics = lists:filter(fun (M) -> lists:prefix(Prefix, M) end, folsom_metrics:get_metrics()),
-    lager:info("[ metrics ] Got the following metrics: ~p", [Metrics]),
 
     Values = lists:foldl(
         fun (N, Acc) ->
-            case rpc:call(N, mzbench_metrics, get_metrics_values, [Metrics]) of
+            case rpc:call(N, mzbench_metrics, get_metrics_values, [Prefix]) of
                 {badrpc, Reason} ->
                     lager:error("Failed to request metrics from node ~p (~p)", [N, Reason]),
                     Acc;
                 Res ->
                     lager:info("Received metrics from ~p", [N]),
-                    merge_metrics(Res, Acc)
+                    store_metrics(Res, Acc)
             end
         end, [], [node()|nodes()]),
 
-    send_to_graphite(Values),
+    send_to_graphite(merge_metrics(Values)),
 
     ok.
 
-How to merge it??
+store_metrics([], Metrics) -> Metrics;
+store_metrics([{M, T, V}|Tail], Metrics) ->
+    Old = case lists:keyfind(M, 1, Metrics) of
+        {_, _, L} -> L;
+        false -> []
+    end,
+    store_metrics(Tail, lists:keystore(M, 1, Metrics, {M, T, [V | Old]})).
 
-merge_metrics([], Metrics) -> Metrics;
-merge_metrics([{M, V}|T], Metrics) when is_list(V) ->
-    merge_metrics(T, lists:keystore(M, 1, Metrics, {M, V ++ proplists:get_value(M, Metrics, [])}));
-merge_metrics([{M, V}|T], Metrics) when is_integer(V) ->
-    merge_metrics(T, lists:keystore(M, 1, Metrics, {M, V + proplists:get_value(M, Metrics, 0)})).
+merge_metrics(Values) -> merge_metrics(Values, []).
+merge_metrics([], Res) -> Res;
+merge_metrics([{M, counter, V}|T], Res) -> merge_metrics(T, [{M, lists:sum(V)} | Res]);
+merge_metrics([{M, _, V}|T], Res) -> merge_metrics(T, [{M, median(V)} | Res]).
 
 send_to_graphite(Values) ->
     case graphite_client_sup:get_client() of
@@ -107,21 +122,26 @@ send_to_graphite(Values) ->
                                                             [MetricName, MetricValue, Timestamp])),
                             graphite_client:send(GraphiteClient, Msg)
                     end,
-                    Values);
+                    Values),
+            lager:info("[ metrics ] sent to graphite: ~p", [Values]);
         Error -> lager:error("Could not get graphite client: ~p", [Error])
     end.
 
+median([I]) -> I;
+median([_|_] = L) -> lists:nth(erlang:length(L) div 2, L).
 
-get_metrics_values(Metrics) ->
+get_metrics_values(Prefix) ->
+    Metrics = lists:filter(fun (M) -> lists:prefix(Prefix, M) end, folsom_metrics:get_metrics()),
+    lager:info("[ metrics ] Got the following metrics: ~p", [Metrics]),
     Values = lists:flatmap(
       fun(X) ->
           case lists:suffix("roundtrip", X) of
-              false -> [{X, folsom_metrics:get_metric_value(X)}];
+              false -> [{X, counter, folsom_metrics:get_metric_value(X)}];
               true ->
                   Stats = folsom_metrics:get_histogram_statistics(X),
-                  [{X ++ ".mean",
+                  [{X ++ ".mean", mean,
                     proplists:get_value(arithmetic_mean, Stats)},
-                   {X ++ ".95percentile",
+                   {X ++ ".95percentile", '95percentile',
                     proplists:get_value(95, proplists:get_value(percentile, Stats))}]
           end
       end,
@@ -129,4 +149,19 @@ get_metrics_values(Metrics) ->
     lists:foreach(fun folsom_metrics:delete_metric/1, Metrics),
     Values.
 
+notify(Metric, Value, Type, 1) -> folsom_metrics:notify(Metric, Value, Type);
+notify(Metric, Value, Type, SampleMetrics) ->
+  case random:uniform() of
+    X when X<SampleMetrics -> folsom_metrics:notify(Metric, Value, Type);
+    _ -> ok
+  end.
 
+
+extract_metric_prefix(Meta) ->
+    Prefix = proplists:get_value(metric_prefix, Meta),
+    case Prefix of
+        undefined ->
+            lager:error("Missing metric_prefix in meta: ~p", Meta),
+            "mzbench.undefined";
+        _ -> Prefix
+    end.
