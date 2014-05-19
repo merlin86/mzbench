@@ -1,6 +1,6 @@
 -module(mzbench_metrics).
 
--export([start_link/1,
+-export([start_link/2,
          notify_counter/1,
          notify_roundtrip/2,
          get_metrics_values/1]).
@@ -15,7 +15,8 @@
 
 -record(s, {
     prefix      = "undefined" :: string(),
-    last_export = undefined   :: erlang:now()
+    last_export = undefined   :: erlang:now(),
+    nodes = []
 }).
 
 -define(INTERVAL, 10000). % 10 seconds
@@ -24,8 +25,8 @@
 %%% API
 %%%===================================================================
 
-start_link(MetricsPrefix) ->
-    gen_server:start_link(?MODULE, [MetricsPrefix], []).
+start_link(MetricsPrefix, Nodes) ->
+    gen_server:start_link(?MODULE, [MetricsPrefix, Nodes], []).
 
 notify_counter(Meta) ->
     SampleMetrics = proplists:get_value(sample_metrics, Meta, 1),
@@ -49,10 +50,10 @@ notify_roundtrip(Meta, Value) ->
 %%% gen_server callbacks
 %%%===================================================================
 
-init([MetricsPrefix]) ->
+init([MetricsPrefix, Nodes]) ->
     process_flag(trap_exit, true),
     erlang:send_after(?INTERVAL, self(), trigger),
-    {ok, #s{prefix = MetricsPrefix}}.
+    {ok, #s{prefix = MetricsPrefix, nodes = Nodes}}.
 
 handle_call(Req, _From, State) ->
     lager:error("Unhandled call: ~p", [Req]),
@@ -80,7 +81,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-tick(#s{prefix = Prefix} = _State) ->
+tick(#s{prefix = Prefix, nodes = Nodes} = _State) ->
 
     Values = lists:foldl(
         fun (N, Acc) ->
@@ -92,7 +93,7 @@ tick(#s{prefix = Prefix} = _State) ->
                     lager:info("Received metrics from ~p", [N]),
                     store_metrics(Res, Acc)
             end
-        end, [], [node()|nodes()]),
+        end, [], Nodes),
 
     send_to_graphite(merge_metrics(Values)),
 

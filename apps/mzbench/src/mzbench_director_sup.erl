@@ -38,7 +38,7 @@ init([RunId, Script, Nodes]) ->
     lager:info("[ director_sup ] I'm at ~p", [self()]),
     {ok, {{one_for_one, 5, 1}, [
         child_spec(supervisor, graphite_client_sup, transient, []),
-        child_spec(worker, mzbench_metrics, transient, [metrics_prefix(RunId)]),
+        child_spec(worker, mzbench_metrics, transient, [metrics_prefix(RunId), Nodes]),
         child_spec(worker, mzbench_director, temporary, [self(), Script, Nodes])
     ]}}.
 
