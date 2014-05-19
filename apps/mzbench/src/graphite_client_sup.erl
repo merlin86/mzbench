@@ -19,10 +19,14 @@
 
 %% api
 get_client() ->
-    case start_client(get_env(graphite_host), get_env(graphite_port)) of
-        {error, {already_started, Pid}} -> {ok, Pid};
-        {ok, Pid} -> {ok, Pid};
-        {error, Reason} -> {error, Reason}
+    Host = get_env(graphite_host),
+    case Host of
+        undefined -> noclient;
+        _ -> case start_client(Host, get_env(graphite_port)) of
+                 {error, {already_started, Pid}} -> {ok, Pid};
+                 {ok, Pid} -> {ok, Pid};
+                 {error, Reason} -> {error, Reason}
+             end
     end.
 
 %% management api
@@ -44,5 +48,7 @@ start_client(Host, Port) ->
          [graphite_client]}).
 
 get_env(Name) ->
-    {ok, Value} = application:get_env(Name),
-    Value.
+    case application:get_env(Name) of
+        {ok, Value} -> Value;
+        undefined -> undefined
+    end.

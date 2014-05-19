@@ -65,15 +65,19 @@ tick(_State) ->
     send_to_graphite(Values).
 
 send_to_graphite(Values) ->
-    {ok, GraphiteClient} = graphite_client_sup:get_client(),
-    {Mega, Secs, _} = now(),
-    Timestamp = Mega * 1000000 + Secs,
-    lists:map(fun({MetricName, MetricValue}) ->
-                      Msg =lists:flatten(io_lib:format("~s ~p ~p~n",
-                                                       [MetricName, MetricValue, Timestamp])),
-                      graphite_client:send(GraphiteClient, Msg)
-              end,
-              Values).
+    case graphite_client_sup:get_client() of
+        noclient -> ok;
+        {ok, GraphiteClient} ->
+            {Mega, Secs, _} = now(),
+            Timestamp = Mega * 1000000 + Secs,
+            lists:map(fun({MetricName, MetricValue}) ->
+                            Msg =lists:flatten(io_lib:format("~s ~p ~p~n",
+                                                            [MetricName, MetricValue, Timestamp])),
+                            graphite_client:send(GraphiteClient, Msg)
+                    end,
+                    Values);
+        Error -> lager:error("Could not get graphite client: ~p", [Error])
+    end.
 
 get_values(Metrics) ->
     lists:flatmap(
