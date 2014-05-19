@@ -95,13 +95,18 @@ read_script(ScriptFileName) ->
     {ok, Contents} = file:read_file(ScriptFileName),
     case erl_scan:string(binary_to_list(Contents)) of
         {ok, Ts, _} ->
-            {ok, [AST]} = erl_parse:parse_exprs(Ts),
-            Script = ast:transform(AST),
-            RunId = make_run_id(ScriptFileName),
-            FinalScript = ast:add_meta(Script, [{run_id, RunId}]),
-            {ok, FinalScript};
-        {error, {_, erl_parse, E}, _} ->
-            lager:error("Parsing script file failed: ~p", [E]),
+            case erl_parse:parse_exprs(Ts) of
+                {ok, [AST]} ->
+                    Script = ast:transform(AST),
+                    RunId = make_run_id(ScriptFileName),
+                    FinalScript = ast:add_meta(Script, [{run_id, RunId}]),
+                    {ok, FinalScript};
+                {error, E} ->
+                    lager:error("Parsing script file failed: ~p", [E]),
+                    {error, E}
+            end;
+        {error, E, _} ->
+            lager:error("Scanning script file failed: ~p", [E]),
             {error, E};
         A ->
             lager:error("Reading script file failed: ~p", [A]),
