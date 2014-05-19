@@ -21,6 +21,8 @@ map_meta(_, C) -> C.
 markup({tuple, Line, [{atom, L2, Op} | Params]}) ->
   {tuple, Line, [{atom, L2, Op}, {cons, L2, {tuple, L2, [{atom, L2, line}, {integer, L2, Line}]}, {nil, L2}} |
                  markup(Params)]};
+markup({tuple, Line, []}) ->
+  {tuple, Line, [{cons, Line, {tuple, Line, [{atom, Line, line}, {integer, Line, Line}]}, {nil, Line}}]};
 markup([]) -> [];
 markup([H | T]) -> [markup(H) | markup(T)];
 markup(T) when is_tuple(T) ->
@@ -31,12 +33,12 @@ markup(T) when is_tuple(T) ->
 markup(S) -> S.
 
 records([]) -> [];
-records([H | T]) -> [records(H) | records(T)];
+records(L) when is_list(L) -> lists:map(fun records/1, L);
 records(T) when is_tuple(T) ->
   case tuple_to_list(T) of
     [N, Units] when is_number(N) -> #constant{value = N, units = Units};
     [Name, Meta | Params] -> #operation{name = Name, meta = Meta, args = records(Params)};
-    _ -> T
+    [Meta] -> #operation{name = undefined, meta = Meta, args = []}
   end;
 records(S) -> S.
 
