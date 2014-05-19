@@ -31,6 +31,8 @@ apps/mzbench/src/mzbench.app.src:
   ...
 ```
 
+If you don't have graphite, just remove these tuples from env.
+
 # Scripting language
 
 Any script should be valid erlang list of tuples:
