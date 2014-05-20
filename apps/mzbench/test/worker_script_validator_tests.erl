@@ -4,32 +4,38 @@
 -include("../src/ast.hrl").
 
 validation_ok_simple_test() ->
-    ?assertEqual(check([#operation{name = print, args = ["NaNNaNNaNNaNNaNNaN"]},
-                        #operation{name = print, args = ["BATMAN"]}]),
+    ?assertEqual(check("[{print, \"NaNNaNNaNNaNNaNNaN\"},
+                         {print, \"BATMAN\"}]."),
                  ok).
 
 validation_ok_larger_test() ->
-    Script = [#operation{name = print, args = ["127.0.0.1"]},
-              #operation{name = loop, args = [[#operation{name = time, args=[#constant{value = 1, units = min}]},
-                      #operation{name = rate, args = [#constant{value = 1, units = rps}]}],
-               [#operation{name = print,
-                 args = [#operation{name = choose, args = ["queue1", "queue2", "queue3", "queue4", "queue5"]}]}
-              ]]},
-              #operation{name = loop, args = [[#operation{name = rate, args =[#constant{value = 10, units = rps}]}],
-               [#operation{name = print,
-                 args = [#operation{ name = choose, args = ["queue1", "queue2", "queue3", "queue4", "queue5"]}]
-              }]]}],
-    ?assertEqual(ok,
-                 check(Script)).
+    Script = "[{print, \"127.0.0.1\"},
+               {loop, [{time, {1, min}},
+                       {rate, {1, rps}}],
+                [{print, {choose, \"queue1\", \"queue2\", \"queue3\", \"queue4\"}}]},
+               {loop, [{rate, {10, rps}}],
+                [{print, {choose, \"queue1\", \"queue2\", \"queue3\"}}]}
+              ].",
+    ?assertEqual(ok, check(Script)).
 
 validation_loop_test() ->
-    ?assertEqual({invalid_script, ["Loop must have a spec and a body."]},
-                 check([#operation{name = loop, args = [#operation{name = print, args = ["NaN"]}]},
-                        #operation{name = print, args = ["BATMAN"]}])).
+    ?assertEqual({invalid_script, ["line 3: Loop must have a spec and a body."]},
+                 check("[{loop, [{rate, {3, rps}}],
+                            [{print, \"NaN\"}]},
+                         {loop, [{print, \"BATMAN\"}]}].")).
 
 validation_empty_instruction_test() ->
-    ?assertEqual({invalid_script, ["Empty instruction."]},
-                 check([#operation{}])).
+    ?assertEqual({invalid_script, ["line 2: Empty instruction."]},
+                 check("[{print, \"foo\"},
+                         {},
+                         {print, \"bar\"},
+                         {print, \"baz\"}].")).
 
-check(Script) ->
+check(S) ->
+    Script = string_to_script(S),
     worker_script_validator:validate_worker_script(Script, dummy_worker).
+
+string_to_script(S) ->
+    {ok, Tokens, _} = erl_scan:string(S),
+    {ok, [Expr]} = erl_parse:parse_exprs(Tokens),
+    ast:transform(Expr).
