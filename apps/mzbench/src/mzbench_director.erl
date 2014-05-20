@@ -45,6 +45,10 @@ handle_call(Req, _From, State) ->
     lager:error("Unhandled call: ~p", [Req]),
     {stop, {unhandled_call, Req}, State}.
 
+handle_cast({start_pools, _Pools, []}, State) ->
+    lager:error("[ director ] There are no alive nodes to start workers"),
+    mzbench_director_sup:stop(State#state.super_pid),
+    {stop, empty_nodes, State};
 handle_cast({start_pools, Pools, Nodes}, State) ->
     {noreply, State#state{
         pools = start_pools(State#state.super_pid, Pools, Nodes, [])
