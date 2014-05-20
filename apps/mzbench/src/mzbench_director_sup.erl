@@ -83,5 +83,5 @@ iso_8601_fmt(DateTime) ->
         [Year, Month, Day, Hour, Min, Sec]).
 
 metrics_prefix(RunId) ->
-    lists:flatten(io_lib:format("mzbench.~s", [RunId])).
+    "mzbench." ++ RunId.
 

@@ -83,34 +83,33 @@ code_change(_OldVsn, State, _Extra) ->
 
 tick(#s{prefix = Prefix, nodes = Nodes} = _State) ->
 
-    Values = lists:foldl(
-        fun (N, Acc) ->
+    Values = lists:flatmap(
+        fun (N) ->
             case rpc:call(N, mzbench_metrics, get_metrics_values, [Prefix]) of
                 {badrpc, Reason} ->
                     lager:error("Failed to request metrics from node ~p (~p)", [N, Reason]),
-                    Acc;
+                    [];
                 Res ->
                     lager:info("Received metrics from ~p", [N]),
-                    store_metrics(Res, Acc)
+                    Res
             end
-        end, [], Nodes),
+        end, Nodes),
 
     send_to_graphite(merge_metrics(Values)),
 
     ok.
 
-store_metrics([], Metrics) -> Metrics;
-store_metrics([{M, T, V}|Tail], Metrics) ->
-    Old = case lists:keyfind(M, 1, Metrics) of
-        {_, _, L} -> L;
-        false -> []
-    end,
-    store_metrics(Tail, lists:keystore(M, 1, Metrics, {M, T, [V | Old]})).
-
 merge_metrics(Values) -> merge_metrics(Values, []).
 merge_metrics([], Res) -> Res;
-merge_metrics([{M, counter, V}|T], Res) -> merge_metrics(T, [{M, lists:sum(V)} | Res]);
-merge_metrics([{M, _, V}|T], Res) -> merge_metrics(T, [{M, median(V)} | Res]).
+merge_metrics([{M, _}|_] = Metrics, Res) ->
+    V = proplists:get_all_values(M, Metrics),
+    merge_metrics(proplists:delete(M, Metrics), [{M, merge_values(get_metric_type(M), V)} | Res]).
+
+merge_values(counter, Values) -> lists:sum(Values);
+merge_values(_, Values) -> median(Values).
+
+get_metric_type(M) ->
+    erlang:list_to_atom(lists:last(string:tokens(M, "."))).
 
 send_to_graphite(Values) ->
     case graphite_client_sup:get_client() of
@@ -128,8 +127,7 @@ send_to_graphite(Values) ->
         Error -> lager:error("Could not get graphite client: ~p", [Error])
     end.
 
-median([I]) -> I;
-median([_|_] = L) -> lists:nth(erlang:length(L) div 2, L).
+median([_|_] = L) -> lists:nth(round(erlang:length(L)/2), lists:usort(L)).
 
 get_metrics_values(Prefix) ->
     Metrics = lists:filter(fun (M) -> lists:prefix(Prefix, M) end, folsom_metrics:get_metrics()),
@@ -137,12 +135,12 @@ get_metrics_values(Prefix) ->
     Values = lists:flatmap(
       fun(X) ->
           case lists:suffix("roundtrip", X) of
-              false -> [{X, counter, folsom_metrics:get_metric_value(X)}];
+              false -> [{X, folsom_metrics:get_metric_value(X)}];
               true ->
                   Stats = folsom_metrics:get_histogram_statistics(X),
-                  [{X ++ ".mean", mean,
+                  [{X ++ ".mean",
                     proplists:get_value(arithmetic_mean, Stats)},
-                   {X ++ ".95percentile", '95percentile',
+                   {X ++ ".95percentile",
                     proplists:get_value(95, proplists:get_value(percentile, Stats))}]
           end
       end,
