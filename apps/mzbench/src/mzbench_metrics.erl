@@ -105,11 +105,11 @@ merge_metrics([{M, _}|_] = Metrics, Res) ->
     V = proplists:get_all_values(M, Metrics),
     merge_metrics(proplists:delete(M, Metrics), [{M, merge_values(get_metric_type(M), V)} | Res]).
 
-merge_values(counter, Values) -> lists:sum(Values);
+merge_values("counter", Values) -> lists:sum(Values);
 merge_values(_, Values) -> median(Values).
 
 get_metric_type(M) ->
-    erlang:list_to_atom(lists:last(string:tokens(M, "."))).
+    lists:last(string:tokens(M, ".")).
 
 send_to_graphite(Values) ->
     case graphite_client_sup:get_client() of
@@ -134,9 +134,9 @@ get_metrics_values(Prefix) ->
     lager:info("[ metrics ] Got the following metrics: ~p", [Metrics]),
     Values = lists:flatmap(
       fun(X) ->
-          case lists:suffix("roundtrip", X) of
-              false -> [{X, folsom_metrics:get_metric_value(X)}];
-              true ->
+          case get_metric_type(X) of
+              "counter"   -> [{X, folsom_metrics:get_metric_value(X)}];
+              "roundtrip" ->
                   Stats = folsom_metrics:get_histogram_statistics(X),
                   [{X ++ ".mean",
                     proplists:get_value(arithmetic_mean, Stats)},
