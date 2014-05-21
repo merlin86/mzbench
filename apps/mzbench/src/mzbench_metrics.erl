@@ -157,10 +157,11 @@ notify(Metric, Value, Type, SampleMetrics) ->
 
 
 extract_metric_prefix(Meta) ->
+    PoolName = proplists:get_value(pool_name, Meta, "default_pool"),
     Prefix = proplists:get_value(metric_prefix, Meta),
     case Prefix of
         undefined ->
-            lager:error("Missing metric_prefix in meta: ~p", Meta),
+            lager:error("Missing metric_prefix in meta: ~p", [Meta]),
             "mzbench.undefined";
-        _ -> Prefix
+        _ -> re:replace(Prefix, "POOL", PoolName, [{return, list}])
     end.

@@ -59,7 +59,7 @@ read_script(ScriptFileName, RunId) ->
             Script2 = ast:map_meta(
                 fun (M, Op) ->
                     Line  = proplists:get_value(line, M),
-                    P = lists:flatten(io_lib:format("~s.~p-~s", [metrics_prefix(RunId), Line, Op])),
+                    P = lists:flatten(io_lib:format("~s/POOL/~p-~s", [metrics_prefix(RunId), Line, Op])),
                     [{metric_prefix, P}|M]
                 end, Script),
             FinalScript = ast:add_meta(Script2, [{run_id, RunId}]),
@@ -83,5 +83,5 @@ iso_8601_fmt(DateTime) ->
         [Year, Month, Day, Hour, Min, Sec]).
 
 metrics_prefix(RunId) ->
-    "mzbench." ++ RunId.
+    "mzbench/" ++ RunId.
 
