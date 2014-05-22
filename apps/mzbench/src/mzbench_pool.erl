@@ -62,8 +62,7 @@ handle_cast({start_workers, SuperPid, Pool, Nodes}, #s{workers = Tid} = State) -
     [WorkerModule] = mproplists:get_value(worker_type, PoolOpts, [undefined]),
     utility:fold_interval(
         fun (N, [NextNode|T]) ->
-            WSWithMetrics = ast:add_meta(Script, [{worker_id, N}, {sample_metrics, SampleMetrics}]),
-            WorkerScript = ast:add_meta(WSWithMetrics, [{pool_name, Name}]),
+            WorkerScript = ast:add_meta(Script, [{worker_id, N}, {sample_metrics, SampleMetrics}, {pool_name, Name}]),
             Args = [NextNode, WorkerScript, WorkerModule, self()],
             {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, Args),
             Ref = erlang:monitor(process, P),
