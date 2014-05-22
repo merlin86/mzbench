@@ -10,5 +10,5 @@
                   folsom
                  ]},
   {mod, { mzbench_app, []}},
-  {env, [ ]}
+  {env, []}
  ]}.
