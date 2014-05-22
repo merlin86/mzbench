@@ -18,7 +18,15 @@ start_link(ScriptFileName, Nodes) ->
     RunId = make_run_id(ScriptFileName),
     case read_script(ScriptFileName, RunId) of
         {ok, Script} ->
-            supervisor:start_link(?MODULE, [RunId, Script, Nodes]);
+            case supervisor:start_link(?MODULE, [Script, Nodes]) of
+                {ok, SelfPid} ->
+                    Spec1 = child_spec(supervisor, graphite_client_sup, transient, []),
+                    {ok, GraphiteSupPid} = supervisor:start_child(SelfPid, Spec1),
+                    Spec2 = child_spec(worker, mzbench_metrics, transient, [metrics_prefix(RunId), Nodes, GraphiteSupPid]),
+                    {ok, _} = supervisor:start_child(SelfPid, Spec2),
+                    {ok, SelfPid};
+                Error -> Error
+            end;
         {error, E} ->
             {error, {shutdown, E}}
     end.
@@ -34,11 +42,9 @@ stop(Pid) ->
 %%% supervisor callbacks
 %%%===================================================================
 
-init([RunId, Script, Nodes]) ->
+init([Script, Nodes]) ->
     lager:info("[ director_sup ] I'm at ~p", [self()]),
     {ok, {{one_for_one, 5, 1}, [
-        child_spec(supervisor, graphite_client_sup, transient, []),
-        child_spec(worker, mzbench_metrics, transient, [metrics_prefix(RunId), Nodes]),
         child_spec(worker, mzbench_director, temporary, [self(), Script, Nodes])
     ]}}.
 

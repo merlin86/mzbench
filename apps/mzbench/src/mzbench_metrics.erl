@@ -1,6 +1,6 @@
 -module(mzbench_metrics).
 
--export([start_link/2,
+-export([start_link/3,
          notify_counter/1,
          notify_roundtrip/2,
          get_metrics_values/1]).
@@ -17,6 +17,7 @@
     prefix      = "undefined" :: string(),
     last_export = undefined   :: undefined | erlang:timestamp(),
     nodes = []
+    graphite_client_sup_pid = undefined :: pid()
 }).
 
 -define(INTERVAL, 10000). % 10 seconds
@@ -25,8 +26,8 @@
 %%% API
 %%%===================================================================
 
-start_link(MetricsPrefix, Nodes) ->
-    gen_server:start_link(?MODULE, [MetricsPrefix, Nodes], []).
+start_link(MetricsPrefix, Nodes, GraphiteSupPid) ->
+    gen_server:start_link(?MODULE, [MetricsPrefix, Nodes, GraphiteSupPid], []).
 
 notify_counter(Meta) ->
     SampleMetrics = proplists:get_value(sample_metrics, Meta, 1),
@@ -50,10 +51,10 @@ notify_roundtrip(Meta, Value) ->
 %%% gen_server callbacks
 %%%===================================================================
 
-init([MetricsPrefix, Nodes]) ->
+init([MetricsPrefix, Nodes, GraphiteSupPid]) ->
     process_flag(trap_exit, true),
     erlang:send_after(?INTERVAL, self(), trigger),
-    {ok, #s{prefix = MetricsPrefix, nodes = Nodes}}.
+    {ok, #s{prefix = MetricsPrefix, nodes = Nodes, graphite_client_sup_pid = GraphiteSupPid}}.
 
 handle_call(Req, _From, State) ->
     lager:error("Unhandled call: ~p", [Req]),
@@ -81,7 +82,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-tick(#s{prefix = Prefix, nodes = Nodes} = _State) ->
+tick(#s{prefix = Prefix, nodes = Nodes, graphite_client_sup_pid = GraphiteSupPid} = _State) ->
 
     Values = lists:flatmap(
         fun (N) ->
@@ -95,7 +96,7 @@ tick(#s{prefix = Prefix, nodes = Nodes} = _State) ->
             end
         end, Nodes),
 
-    send_to_graphite(merge_metrics(Values)),
+    send_to_graphite(GraphiteSupPid, merge_metrics(Values)),
 
     ok.
 
@@ -111,8 +112,8 @@ merge_values(_, Values) -> median(Values).
 get_metric_type(M) ->
     lists:last(string:tokens(M, ".")).
 
-send_to_graphite(Values) ->
-    case graphite_client_sup:get_client() of
+send_to_graphite(GraphiteSupPid, Values) ->
+    case graphite_client_sup:get_client(GraphiteSupPid) of
         noclient -> ok;
         {ok, GraphiteClient} ->
             {Mega, Secs, _} = now(),
