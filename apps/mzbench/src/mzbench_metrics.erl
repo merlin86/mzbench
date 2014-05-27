@@ -148,10 +148,10 @@ get_metrics_values(Prefix) ->
     lists:foreach(fun folsom_metrics:delete_metric/1, Metrics),
     Values.
 
-notify(Metric, Value, Type, 1) -> folsom_metrics:notify(Metric, Value, Type);
+notify(Metric, Value, Type, 1) -> folsom_metrics:safely_notify(Metric, Value, Type);
 notify(Metric, Value, Type, SampleMetrics) ->
   case random:uniform() of
-    X when X<SampleMetrics -> folsom_metrics:notify(Metric, Value, Type);
+    X when X<SampleMetrics -> folsom_metrics:safely_notify(Metric, Value, Type);
     _ -> ok
   end.
 
