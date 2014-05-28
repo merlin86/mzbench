@@ -1,11 +1,11 @@
 -record(operation, {
-        name = undefined,
-        args = [],
-        meta = []
+        name = undefined :: atom(),
+        args = [] :: abstract_expr(),
+        meta = [] :: meta()
         }).
 
 -record(constant, {
-        value = undefined,
-        units = undefined,
-        meta = []
+        value = undefined :: term(),
+        units = undefined :: atom(),
+        meta = [] :: meta()
         }).

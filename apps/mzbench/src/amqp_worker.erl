@@ -19,7 +19,7 @@
 
 -record(payload, {
     data      = <<>>         :: binary(),
-    timestamp = erlang:now() :: erlang:now()
+    timestamp = erlang:now() :: erlang:timestamp()
 }).
 
 initial_state() -> #s{}.

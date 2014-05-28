@@ -36,4 +36,4 @@ distclean: clean
 	        - dialyzer --output_plt .mzbench.plt --build_plt --apps erts kernel stdlib eunit crypto -r deps
 
 dialyzer: .mzbench.plt
-	        dialyzer --plt .mzbench.plt --src apps/mzbench/src -I apps/mzbench/src -I deps
+	        dialyzer --plt .mzbench.plt apps/mzbench/ebin -I apps/mzbench/src -I deps

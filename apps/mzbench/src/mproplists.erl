@@ -2,6 +2,7 @@
 
 -export([get_value/2, get_value/3]).
 
+-include("types.hrl").
 -include("ast.hrl").
 
 -spec get_value(term(), [tuple()]) -> term().

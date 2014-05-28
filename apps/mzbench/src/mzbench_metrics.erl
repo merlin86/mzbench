@@ -15,7 +15,7 @@
 
 -record(s, {
     prefix      = "undefined" :: string(),
-    last_export = undefined   :: erlang:now(),
+    last_export = undefined   :: undefined | erlang:timestamp(),
     nodes = []
 }).
 

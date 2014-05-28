@@ -1,6 +1,7 @@
 -module(worker_script_validator_tests).
 
 -include_lib("eunit/include/eunit.hrl").
+-include("../src/types.hrl").
 -include("../src/ast.hrl").
 
 validation_ok_simple_test() ->

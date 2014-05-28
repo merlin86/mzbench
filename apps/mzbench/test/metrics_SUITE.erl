@@ -2,6 +2,7 @@
 
 -include_lib("common_test/include/ct.hrl").
 
+-include("../src/types.hrl").
 -include("../src/ast.hrl").
 
 %% Test server callbacks

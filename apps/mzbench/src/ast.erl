@@ -5,11 +5,11 @@
 -include("types.hrl").
 -include("ast.hrl").
 
--spec add_meta(abstract_expr(), [tuple()]) -> abstract_expr().
+-spec add_meta(abstract_expr(), meta()) -> abstract_expr().
 add_meta(Expr, NewMeta) ->
-    map_meta(fun (Meta, _) -> Meta ++ NewMeta end, Expr).
+   map_meta(fun (Meta, _) -> Meta ++ NewMeta end, Expr).
 
--spec map_meta(fun(([tuple()]) -> [tuple()]), abstract_expr()) -> abstract_expr().
+-spec map_meta(fun((meta(), atom()) -> meta()), abstract_expr()) -> abstract_expr().
 map_meta(Fun, #operation{name = Name, meta = Meta, args = Args} = Op) ->
     Op#operation{meta = Fun(Meta, Name), args = map_meta(Fun, Args)};
 map_meta(Fun, [H | T]) ->

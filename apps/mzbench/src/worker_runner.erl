@@ -12,7 +12,7 @@ start_link(Node, Script, WorkerModule, Pool) ->
     {ok, proc_lib:spawn_link(Node, ?MODULE, run_worker_script, [Script, WorkerModule, Pool])}.
 
 -spec run_worker_script([script_expr()], module(), Pool :: pid())
-    -> {ok, worker_state()}.
+    -> ok.
 
 run_worker_script(Script, WorkerModule, Pool) ->
     Res =
@@ -25,7 +25,8 @@ run_worker_script(Script, WorkerModule, Pool) ->
                 {exception, node(), {C, E, erlang:get_stacktrace()}}
         end,
 
-    Pool ! {worker_result, self(), Res}.
+    Pool ! {worker_result, self(), Res},
+    ok.
 
 -spec eval_expr(script_expr(), worker_state(), module())
     -> {script_value(), worker_state()}.

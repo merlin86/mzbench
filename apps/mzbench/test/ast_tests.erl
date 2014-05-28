@@ -1,5 +1,6 @@
 -module(ast_tests).
 -include_lib("eunit/include/eunit.hrl").
+-include("../src/types.hrl").
 -include("../src/ast.hrl").
 
 transform_test() ->

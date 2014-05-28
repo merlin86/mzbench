@@ -13,6 +13,7 @@
          code_change/3
         ]).
 
+-include("types.hrl").
 -include("ast.hrl").
 
 -record(s, {
