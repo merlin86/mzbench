@@ -2,7 +2,9 @@
 
 -export([start_link/0,
          run/1,
-         run/2
+         run/2,
+         wait_finish/1,
+         wait_finish/2
         ]).
 
 -behaviour(supervisor).
@@ -27,6 +29,20 @@ run(ScriptFileName, Nodes) ->
                _    -> "../../" ++ ScriptFileName
            end,
     supervisor:start_child(?MODULE, [Path, Nodes]).
+
+wait_finish(Pid) ->
+    Ref = erlang:monitor(process, Pid),
+    receive
+        {'DOWN', Ref, _, _, _} -> ok
+    end.
+
+wait_finish(Pid, Timeout) ->
+    Ref = erlang:monitor(process, Pid),
+    receive
+        {'DOWN', Ref, _, _, _} -> ok
+    after Timeout ->
+        {error, Timeout}
+    end.
 
 %%%===================================================================
 %%% supervisor callbacks
