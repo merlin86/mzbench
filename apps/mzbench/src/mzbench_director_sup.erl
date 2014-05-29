@@ -1,5 +1,5 @@
 -module(mzbench_director_sup).
--export([start_link/2,
+-export([start_link/3,
          start_child/3,
          stop/1
         ]).
@@ -13,10 +13,10 @@
 %%% API
 %%%===================================================================
 
-start_link(ScriptFileName, Nodes) ->
+start_link(ScriptFileName, ScriptBody, Nodes) ->
     lager:info("[ director_sup ] Loading ~p", [ScriptFileName]),
     RunId = make_run_id(ScriptFileName),
-    case read_script(ScriptFileName, RunId) of
+    case parse_script(ScriptBody, RunId) of
         {ok, Script} ->
             supervisor:start_link(?MODULE, [RunId, Script, Nodes]);
         {error, E} ->
@@ -49,10 +49,9 @@ init([RunId, Script, Nodes]) ->
 child_spec(WorkerOrSupervisor, I, Restart, Args) ->
     {I, {I, start_link, Args}, Restart, 1000, WorkerOrSupervisor, [I]}.
 
--spec read_script(string(), string()) -> {ok, [script_expr()]} | {error, any()}.
-read_script(ScriptFileName, RunId) ->
-    {ok, Contents} = file:read_file(ScriptFileName),
-    case erl_scan:string(binary_to_list(Contents)) of
+-spec parse_script(string(), string()) -> {ok, [script_expr()]} | {error, any()}.
+parse_script(Body, RunId) ->
+    case erl_scan:string(Body) of
         {ok, Ts, _} ->
             {ok, [AST]} = erl_parse:parse_exprs(Ts),
             Script = ast:transform(AST),

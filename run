@@ -1,22 +1,25 @@
 #!/usr/bin/env escript
+-mode(compile).
 
 -define(MZBENCH_COOKIE, mzbench).
--define(MZBENCH_NODE, "mzbench").
+-define(MZBENCH_NODE,  "mzbench").
 
 main([ScriptName]) ->
-    run([ScriptName]);
-main([ScriptName | Nodes]) ->
-    run([ScriptName, [erlang:list_to_atom(N) || N <- Nodes]]);
+    run(ScriptName, localhost, ?MZBENCH_COOKIE);
+main([ScriptName, Host]) ->
+    run(ScriptName, Host, ?MZBENCH_COOKIE);
 main(_) ->
     usage().
 
-run(Args) ->
+run(Script, Host, Cookie) ->
     ok = application:start(inets),
     {ok, _} = net_kernel:start([nodename_gen(), shortnames]),
-    true = auth:set_cookie(?MZBENCH_COOKIE),
-    true = net_kernel:hidden_connect_node(local_bench_nodename()),
-    {ok, Ref} = rpc:call(local_bench_nodename(), mzbench_sup, run, Args),
-    rpc:call(local_bench_nodename(), mzbench_sup, wait_finish, [Ref], infinity),
+    true = auth:set_cookie(Cookie),
+    Node = bench_nodename(Host),
+    true == net_kernel:hidden_connect_node(Node) orelse erlang:error({connect_failed, Node}),
+    {ok, ScriptBody} = file:read_file(Script),
+    {ok, Ref} = rpc:call(Node, mzbench_sup, run_script, [Script, erlang:binary_to_list(ScriptBody)]),
+    ok = rpc:call(Node, mzbench_sup, wait_finish, [Ref], infinity),
     io:format("Finished~n").
 
 nodename_gen() ->
@@ -28,9 +31,11 @@ hostname() ->
     [_, H] = string:tokens(erlang:atom_to_list(node()), "@"),
     H.
 
-local_bench_nodename() ->
-    erlang:list_to_atom(string:join([?MZBENCH_NODE, hostname()], "@")).
+bench_nodename(localhost) ->
+    bench_nodename(hostname());
+bench_nodename(Host) ->
+    erlang:list_to_atom(string:join([?MZBENCH_NODE, Host], "@")).
 
 usage() ->
-    io:format("Usage: ~s ScriptName [Node1 [Node2 ...]]~n", [escript:script_name()]).
+    io:format("Usage: ~s ScriptName [Host]~n", [escript:script_name()]).
 
