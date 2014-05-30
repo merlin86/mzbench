@@ -34,7 +34,7 @@ stop(Pid) ->
 
 get_graphite_client(Self) ->
     case get_child_pid(Self, graphite_client_sup) of
-        no_such_child -> noclient;
+        {error, no_such_child}-> noclient;
         {ok, GraphiteSupPid} -> graphite_client_sup:get_client(GraphiteSupPid)
     end.
 
@@ -93,10 +93,12 @@ iso_8601_fmt(DateTime) ->
 metrics_prefix(RunId) ->
     "mzbench/" ++ RunId.
 
+-spec get_child_pid(pid(), ChildId :: atom())
+    -> {ok, pid()} | {error, Reason :: term()}.
 get_child_pid(SelfPid, ChildId) ->
     Children = supervisor:which_children(SelfPid),
     case lists:keyfind(ChildId, 1, Children) of
-        false -> no_such_child;
-        ChildTuple -> {ok, element(2, ChildTuple)}
+        false -> {error, no_such_child};
+        {_, P, _, _} -> {ok, P}
     end.
 
