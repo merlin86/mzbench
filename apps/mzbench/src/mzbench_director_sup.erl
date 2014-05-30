@@ -1,7 +1,8 @@
 -module(mzbench_director_sup).
 -export([start_link/3,
          start_child/3,
-         stop/1
+         stop/1,
+         get_graphite_client/1
         ]).
 
 -behaviour(supervisor).
@@ -18,28 +19,35 @@ start_link(ScriptFileName, ScriptBody, Nodes) ->
     RunId = make_run_id(ScriptFileName),
     case parse_script(ScriptBody, RunId) of
         {ok, Script} ->
-            supervisor:start_link(?MODULE, [RunId, Script, Nodes]);
+            supervisor:start_link(?MODULE, [Script, Nodes, RunId]);
         {error, E} ->
             {error, {shutdown, E}}
     end.
-
 
 start_child(Pid, Module, Args) ->
     supervisor:start_child(Pid, {make_ref(), {Module, start_link, Args}, temporary, 1000, worker, [Module]}).
 
 stop(Pid) ->
+    {ok, MetricsPid} = get_child_pid(Pid, mzbench_metrics),
+    mzbench_metrics:trigger(MetricsPid),
     supervisor:terminate_child(mzbench_sup, Pid).
+
+get_graphite_client(Self) ->
+    case get_child_pid(Self, graphite_client_sup) of
+        {error, no_such_child}-> noclient;
+        {ok, GraphiteSupPid} -> graphite_client_sup:get_client(GraphiteSupPid)
+    end.
 
 %%%===================================================================
 %%% supervisor callbacks
 %%%===================================================================
 
-init([RunId, Script, Nodes]) ->
+init([Script, Nodes, RunId]) ->
     lager:info("[ director_sup ] I'm at ~p", [self()]),
     {ok, {{one_for_one, 5, 1}, [
+        child_spec(worker, mzbench_director, temporary, [self(), Script, Nodes]),
         child_spec(supervisor, graphite_client_sup, transient, []),
-        child_spec(worker, mzbench_metrics, transient, [metrics_prefix(RunId), Nodes]),
-        child_spec(worker, mzbench_director, temporary, [self(), Script, Nodes])
+        child_spec(worker, mzbench_metrics, transient, [metrics_prefix(RunId), Nodes, self()])
     ]}}.
 
 %%%===================================================================
@@ -83,4 +91,13 @@ iso_8601_fmt(DateTime) ->
 
 metrics_prefix(RunId) ->
     "mzbench/" ++ RunId.
+
+-spec get_child_pid(pid(), ChildId :: atom())
+    -> {ok, pid()} | {error, Reason :: term()}.
+get_child_pid(SelfPid, ChildId) ->
+    Children = supervisor:which_children(SelfPid),
+    case lists:keyfind(ChildId, 1, Children) of
+        false -> {error, no_such_child};
+        {_, P, _, _} -> {ok, P}
+    end.
 

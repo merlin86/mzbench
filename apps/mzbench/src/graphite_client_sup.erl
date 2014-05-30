@@ -13,16 +13,16 @@
 -module(graphite_client_sup).
 -behaviour(supervisor).
 
--export([get_client/0]).
+-export([get_client/1]).
 -export([start_link/0]).
 -export([init/1]).
 
 %% api
-get_client() ->
+get_client(SelfPid) ->
     Host = get_env(graphite_host),
     case Host of
         undefined -> noclient;
-        _ -> case start_client(Host, get_env(graphite_port)) of
+        _ -> case start_client(SelfPid, Host, get_env(graphite_port)) of
                  {error, {already_started, Pid}} -> {ok, Pid};
                  {ok, Pid} -> {ok, Pid};
                  {error, Reason} -> {error, Reason}
@@ -30,16 +30,16 @@ get_client() ->
     end.
 
 %% management api
-start_link() -> supervisor:start_link({local, ?MODULE}, ?MODULE, no_arg).
+start_link() -> supervisor:start_link(?MODULE, no_arg).
 
 %% supervisor callback
 init(no_arg) -> {ok, {{one_for_one, 5, 10}, []}}.
 
 
 %% internal
-start_client(Host, Port) ->
+start_client(SelfPid, Host, Port) ->
       supervisor:start_child(
-        ?MODULE,
+        SelfPid,
         {graphite_client,
          {graphite_client, start_link, [Host, Port]},
          temporary,

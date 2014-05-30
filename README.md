@@ -21,17 +21,17 @@ make run
 
 ## Configuring statistics export to graphite
 
-You can customize graphite address and port in env section of
-apps/mzbench/src/mzbench.app.src:
+You can customize graphite address and port in mzbench section of
+`rel/files/sys.config` or in `rel/mzbench/releases/<release-name>/sys.config`:
 
 ```
   ...
-  {env, [{graphite_host, "localhost"},
-         {graphite_port, 2003}]}
+  {mzbench, [{graphite_host, "localhost"},
+             {graphite_port, 2003}]}
   ...
 ```
 
-If you don't have graphite, just remove these tuples from env.
+If you don't have graphite, just remove these tuples from config.
 
 # Scripting language
 

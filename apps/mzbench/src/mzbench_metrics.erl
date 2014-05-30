@@ -1,9 +1,10 @@
 -module(mzbench_metrics).
 
--export([start_link/2,
+-export([start_link/3,
          notify_counter/1,
          notify_roundtrip/2,
-         get_metrics_values/1]).
+         get_metrics_values/1,
+         trigger/1]).
 
 -behaviour(gen_server).
 -export([init/1,
@@ -16,7 +17,8 @@
 -record(s, {
     prefix      = "undefined" :: string(),
     last_export = undefined   :: undefined | erlang:timestamp(),
-    nodes = []
+    nodes = [],
+    supervisor_pid = undefined :: pid()
 }).
 
 -define(INTERVAL, 10000). % 10 seconds
@@ -25,8 +27,8 @@
 %%% API
 %%%===================================================================
 
-start_link(MetricsPrefix, Nodes) ->
-    gen_server:start_link(?MODULE, [MetricsPrefix, Nodes], []).
+start_link(MetricsPrefix, Nodes, SuperPid) ->
+    gen_server:start_link(?MODULE, [MetricsPrefix, Nodes, SuperPid], []).
 
 notify_counter(Meta) ->
     SampleMetrics = proplists:get_value(sample_metrics, Meta, 1),
@@ -46,15 +48,21 @@ notify_roundtrip(Meta, Value) ->
       histogram,
       SampleMetrics).
 
+trigger(Self) ->
+    gen_server:call(Self, trigger).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
-init([MetricsPrefix, Nodes]) ->
+init([MetricsPrefix, Nodes, SuperPid]) ->
     process_flag(trap_exit, true),
     erlang:send_after(?INTERVAL, self(), trigger),
-    {ok, #s{prefix = MetricsPrefix, nodes = Nodes}}.
+    {ok, #s{prefix = MetricsPrefix, nodes = Nodes, supervisor_pid = SuperPid}}.
 
+handle_call(trigger, _From, State) ->
+    tick(State),
+    {reply, ok, State#s{last_export = erlang:now()}};
 handle_call(Req, _From, State) ->
     lager:error("Unhandled call: ~p", [Req]),
     {stop, {unhandled_call, Req}, State}.
@@ -71,8 +79,8 @@ handle_info(Info, State) ->
     lager:error("Unhandled info: ~p", [Info]),
     {noreply, State}.
 
-terminate(_Reason, State) ->
-    tick(State).
+terminate(_Reason, _State) ->
+    ok.
 
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
@@ -81,7 +89,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-tick(#s{prefix = Prefix, nodes = Nodes} = _State) ->
+tick(#s{prefix = Prefix, nodes = Nodes, supervisor_pid = SuperPid} = _State) ->
 
     Values = lists:flatmap(
         fun (N) ->
@@ -95,7 +103,7 @@ tick(#s{prefix = Prefix, nodes = Nodes} = _State) ->
             end
         end, Nodes),
 
-    send_to_graphite(merge_metrics(Values)),
+    send_to_graphite(SuperPid, merge_metrics(Values)),
 
     ok.
 
@@ -111,18 +119,18 @@ merge_values(_, Values) -> median(Values).
 get_metric_type(M) ->
     lists:last(string:tokens(M, ".")).
 
-send_to_graphite(Values) ->
-    case graphite_client_sup:get_client() of
+send_to_graphite(SuperPid, Values) ->
+    case mzbench_director_sup:get_graphite_client(SuperPid) of
         noclient -> ok;
         {ok, GraphiteClient} ->
             {Mega, Secs, _} = now(),
             Timestamp = Mega * 1000000 + Secs,
             lists:map(fun({MetricName, MetricValue}) ->
-                            Msg =lists:flatten(io_lib:format("~s ~p ~p~n",
-                                                            [MetricName, MetricValue, Timestamp])),
-                            graphite_client:send(GraphiteClient, Msg)
-                    end,
-                    Values),
+                        Msg =lists:flatten(io_lib:format("~s ~p ~p~n",
+                                [MetricName, MetricValue, Timestamp])),
+                        graphite_client:send(GraphiteClient, Msg)
+                end,
+                Values),
             lager:info("[ metrics ] sent to graphite: ~p", [Values]);
         Error -> lager:error("Could not get graphite client: ~p", [Error])
     end.
