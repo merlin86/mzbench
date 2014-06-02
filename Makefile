@@ -40,6 +40,9 @@ distclean: clean
 dialyzer: .mzbench.plt
 	dialyzer --plt .mzbench.plt apps/mzbench/ebin -I apps/mzbench/src -I deps
 
+rpm:
+	service-build-target $(SERVICE_NAME)
+
 generate: get-deps compile rel
 	$(eval relvsn := $(shell bin/relvsn.erl))
 	$(eval target_dir ?= $(DEFAULT_TARGET_DIR))
