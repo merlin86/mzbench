@@ -177,3 +177,9 @@ Functions that are used solely to modify worker state (e.g. logging function)
 return `{nil, NewState}`.
 
 See [dummy_worker](apps/mzbench/src/dummy_worker.erl) module as an example.
+
+# Packaging
+
+`make rpm` builds an rpm.
+
+Build requirements: `gem install fpm` and https://github.com/EchoTeam/service-packager.

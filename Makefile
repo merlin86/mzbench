@@ -40,7 +40,7 @@ distclean: clean
 dialyzer: .mzbench.plt
 	dialyzer --plt .mzbench.plt apps/mzbench/ebin -I apps/mzbench/src -I deps
 
-rpm:
+rpm: fpm-available service-packager-available
 	service-build-target $(SERVICE_NAME)
 
 generate: get-deps compile rel
@@ -51,3 +51,9 @@ generate: get-deps compile rel
 	echo $(relvsn) > rel/$(target_dir)/relvsn
 
 target: clean generate
+
+fpm-available:
+	@which fpm > /dev/null
+
+service-packager-available:
+	@which service-build-target > /dev/null
