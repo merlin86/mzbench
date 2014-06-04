@@ -1,6 +1,8 @@
 -module(mzbench_sup).
 
 -export([start_link/0,
+         is_ready/0,
+         connect_nodes/1,
          run/1,
          run/2,
          run_script/2,
@@ -38,6 +40,22 @@ run_script(ScriptFileName, ScriptBody, undefined) ->
     run_script(ScriptFileName, ScriptBody, [node()|nodes()]);
 run_script(ScriptFileName, ScriptBody, Nodes) ->
     supervisor:start_child(?MODULE, [ScriptFileName, ScriptBody, Nodes]).
+
+is_ready() ->
+    try
+        Apps = application:which_applications(),
+        false =/= lists:keyfind(mzbench, 1, Apps)
+    catch
+        _:Error ->
+            lager:error("is_ready exception: ~p~nStacktrace: ~p", [Error, erlang:get_stacktrace()]),
+            false
+    end.
+
+connect_nodes(Nodes) ->
+    lists:filter(
+        fun (N) ->
+            pong == net_adm:ping(N)
+        end, Nodes).
 
 wait_finish(Pid) ->
     Ref = erlang:monitor(process, Pid),
