@@ -1,13 +1,15 @@
 #!/usr/bin/env escript
 -mode(compile).
 
--define(MZBENCH_COOKIE, mzbench).
 -define(MZBENCH_NODE,  "mzbench").
+-define(DEFAULT_MZBENCH_COOKIE, mzbench).
 
 main([ScriptName]) ->
-    run(ScriptName, localhost, ?MZBENCH_COOKIE);
-main([ScriptName, Host]) ->
-    run(ScriptName, Host, ?MZBENCH_COOKIE);
+    run(ScriptName, localhost, ?DEFAULT_MZBENCH_COOKIE);
+main([ScriptName, Cookie]) ->
+    run(ScriptName, localhost, erlang:list_to_atom(Cookie));
+main([ScriptName, Cookie, Host]) ->
+    run(ScriptName, Host, erlang:list_to_atom(Cookie));
 main(_) ->
     usage().
 
@@ -37,5 +39,5 @@ bench_nodename(Host) ->
     erlang:list_to_atom(string:join([?MZBENCH_NODE, Host], "@")).
 
 usage() ->
-    io:format("Usage: ~s ScriptName [Host]~n", [escript:script_name()]).
+    io:format("Usage: ~s ScriptName [Cookie] [Host]~n", [escript:script_name()]).
 
