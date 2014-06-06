@@ -8,6 +8,7 @@
                   stdlib,
                   lager,
                   folsom,
+                  jsx,
                   erlzmq
                  ]},
   {mod, { mzbench_app, []}},

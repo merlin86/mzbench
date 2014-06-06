@@ -23,6 +23,9 @@
 -define('KIND_SERVICE_ANSWER', 16#41). % A
 -define('KIND_PROXY_ERROR', 16#45). % E
 
+-define('LANGUAGES', [<<"cn">>,<<"da">>,<<"de">>,<<"en">>,<<"es">>,<<"fr">>,<<"it">>,
+                      <<"ja">>,<<"ko">>,<<"nl">>,<<"no">>,<<"pt">>,<<"sv">>]).
+
 -record(s, {
     ctx          = undefined,
     socket       = undefined,
@@ -34,23 +37,24 @@ initial_state() -> #s{}.
 
 %% connect and discover LD service
 -spec connect(state(), meta(), string(), string()) -> {nil, state()}.
-connect(_, _Meta, Identity, Address) ->
+connect(#s{services = Services} = State, _Meta, Identity, Address) ->
     {ok, C} = erlzmq:context(),
     {ok, Socket} = erlzmq:socket(C, [router]),
     erlzmq:setsockopt(Socket, identity, Identity),
     ok = erlzmq:bind(Socket, Address),
-	  lager:info("Binded to ~p with id=~p~nDiscovering... ", [Address, Identity]),
+    lager:info("Binded to ~p with id=~p~nDiscovering... ", [Address, Identity]),
     {ok, Service} = erlzmq:recv(Socket),
-	  lager:info("'~p' discovered~n", [Service]),
-    {nil, #s{ctx = C, socket = Socket, services = [Service]}}.
+    lager:info("'~p' discovered~n", [Service]),
+    {nil, State#s{ctx = C, socket = Socket, services = [Service | Services]}}.
 
 %% send and wait for reply on language detection query
 -spec detect(state(), meta(), string(), string()) -> {nil, state()}.
 detect(#s{socket = Socket, services = Services} = State, Meta, Text, Lang) ->
     mzbench_metrics:notify_counter(Meta),
     send_query(Socket, Services, [{"text", Text}, {"keyboard_lang", Lang}]),
-	  lager:info("Sent '~p' ~p~n", [Text, Lang]),
-	  lager:info("Received '~p'~n", [get_answer(Socket)]), %% jsx:decode(R)
+    lager:info("Sent '~p' ~p~n", [Text, Lang]),
+    Answer = get_answer(Socket),
+    lager:info("Received '~p'~n", [Answer]),
     {nil, State}.
 
 -spec receive_whole(erlzmq_socket()) -> [binary()].
@@ -82,17 +86,14 @@ get_answer(Socket) ->
 
 -spec now_seconds() -> integer().
 now_seconds() ->
-  {MS, S, _} = erlang:now(),
-  MS*1000000 + S.
+    {MS, S, _} = erlang:now(),
+    MS*1000000 + S.
 
 -spec unpack_frame(binary()) -> mziframe().
-unpack_frame(Binary) ->
-    case Binary of
-    << OT:64/big-float, RL:32/float, MK:8, SV:8, SNB/binary >> ->
+unpack_frame(<< OT:64/big-float, RL:32/float, MK:8, SV:8, SNB/binary >>) ->
       #'MZIFrame'{original_time = OT, received_latency = RL,
                   message_kind = MK, service_version = SV, service_name = erlang:binary_to_list(SNB)};
-      _ -> #'MZIFrame'{message_kind = undefined}
-    end.
+unpack_frame(_) -> #'MZIFrame'{message_kind = undefined}.
 
 -spec pack_frame(mziframe()) -> binary().
 pack_frame(#'MZIFrame'{original_time = OT, received_latency = RL,
@@ -100,15 +101,18 @@ pack_frame(#'MZIFrame'{original_time = OT, received_latency = RL,
     SNB = erlang:list_to_binary(SN),
     << OT:64/big-float, RL:32/float, MK:8, SV:8, SNB/binary >>.
 
+-spec full_json([tuple()]) -> [tuple()].
+full_json(Proplist) ->
+    BinProplist = lists:map(fun({A, B}) -> {erlang:list_to_binary(A),
+                                                          erlang:list_to_binary(B)} end, Proplist),
+    [{<<"service">>, <<"language_detect">>},
+     {<<"version">>, <<"0.1">>},
+     {<<"request">>, BinProplist ++ [{<<"languages">>,?LANGUAGES}]}].
+
 -spec send_query(erlzmq_socket(), [string()], [tuple()]) -> ok.
 send_query(Socket, Services, Proplist) ->
-    Languages = lists:map(fun(A)-> erlang:list_to_binary(A) end, ["cn","da","de","en","es","fr","it","ja","ko","nl","no","pt","sv"]),
     lists:map(fun(Service) -> ok = erlzmq:send(Socket, Service, [sndmore]) end, Services),
     ok = erlzmq:send(Socket, <<>>, [sndmore]),
     ok = erlzmq:send(Socket,pack_frame(#'MZIFrame'{original_time = now_seconds(),
                                                    message_kind = ?KIND_SERVICE_QUERY}), [sndmore]),
-    BinProplist = lists:map(fun({A, B}) -> {erlang:list_to_binary(A),
-                                                          erlang:list_to_binary(B)} end, Proplist),
-    FullRequest = [{<<"service">>, <<"language_detect">>},
-                   {<<"request">>, BinProplist ++ [{<<"languages">>,Languages}]}],
-    ok = erlzmq:send(Socket, jsx:encode(FullRequest)).
+    ok = erlzmq:send(Socket, jsx:encode(full_json(Proplist))).
