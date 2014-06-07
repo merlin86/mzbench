@@ -86,7 +86,7 @@ get_answer(Socket) ->
 
 -spec now_seconds() -> integer().
 now_seconds() ->
-    {MS, S, _} = erlang:now(),
+    {MS, S, _} = os:timestamp(),
     MS*1000000 + S.
 
 -spec unpack_frame(binary()) -> mziframe().
