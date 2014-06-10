@@ -5,17 +5,24 @@
          detect/4]).
 
 -include("types.hrl").
--type state() :: string().
--type mziframe() :: string().
--type erlzmq_socket() :: tuple().
+
+-record(s, {
+    ctx          = undefined :: undefined | erlzmq:erlzmq_context(),
+    socket       = undefined :: undefined | erlzmq:erlzmq_socket(),
+    services     = [] :: list()
+}).
 
 -record('MZIFrame', {
-    original_time,
-    received_latency = 0,
-    message_kind,
-    service_version = 1,
-    service_name = ""
+    original_time :: integer() | float(),
+    received_latency = 0.0 :: float(),
+    message_kind :: undefined | integer(),
+    service_version = 1 :: integer(),
+    service_name = "" :: string()
 }).
+
+-type state() :: #s{}.
+-type mziframe() :: #'MZIFrame'{}.
+-type ne_binary() :: <<_:8,_:_*8>>.
 
 -define('KIND_SYSTEM_MGMT', 16#4d). % M
 -define('KIND_I_AM_SERVICE', 16#54). % S
@@ -25,12 +32,6 @@
 
 -define('LANGUAGES', [<<"cn">>,<<"da">>,<<"de">>,<<"en">>,<<"es">>,<<"fr">>,<<"it">>,
                       <<"ja">>,<<"ko">>,<<"nl">>,<<"no">>,<<"pt">>,<<"sv">>]).
-
--record(s, {
-    ctx          = undefined,
-    socket       = undefined,
-    services     = []
-}).
 
 -spec initial_state() -> state().
 initial_state() -> #s{}.
@@ -57,16 +58,16 @@ detect(#s{socket = Socket, services = Services} = State, Meta, Text, Lang) ->
     lager:info("Received '~p'~n", [Answer]),
     {nil, State}.
 
--spec receive_whole(erlzmq_socket()) -> [binary()].
+-spec receive_whole(erlzmq:erlzmq_socket()) -> [binary()].
 receive_whole(Socket) ->
     {ok, R} = erlzmq:recv(Socket),
     {ok, RcvMore} = erlzmq:getsockopt(Socket, rcvmore),
     case RcvMore of
-      0 -> [R];
-      _ -> [R | receive_whole(Socket)]
+      0 -> [erlang:iolist_to_binary(R)];
+      _ -> [erlang:iolist_to_binary(R) | receive_whole(Socket)]
     end.
 
--spec get_mziframe([binary()]) -> mziframe().
+-spec get_mziframe([ne_binary() | any()]) -> mziframe().
 get_mziframe(List) ->
      [_, MZIF | _] = lists:dropwhile(fun(E)-> <<>> =/= E end, List),
      unpack_frame(MZIF).
@@ -75,7 +76,7 @@ get_mziframe(List) ->
 get_message(List) ->
      jsx:decode(lists:last(List)).
 
--spec get_answer(erlzmq_socket()) -> {mziframe(), [binary()]}.
+-spec get_answer(erlzmq:erlzmq_socket()) -> {mziframe(), [binary()]}.
 get_answer(Socket) ->
      Frames = receive_whole(Socket),
      MZIF = get_mziframe(Frames),
@@ -89,7 +90,7 @@ now_seconds() ->
     {MS, S, _} = os:timestamp(),
     MS*1000000 + S.
 
--spec unpack_frame(binary()) -> mziframe().
+-spec unpack_frame(ne_binary() | any()) -> mziframe().
 unpack_frame(<< OT:64/big-float, RL:32/float, MK:8, SV:8, SNB/binary >>) ->
       #'MZIFrame'{original_time = OT, received_latency = RL,
                   message_kind = MK, service_version = SV, service_name = erlang:binary_to_list(SNB)};
@@ -109,7 +110,7 @@ full_json(Proplist) ->
      {<<"version">>, <<"0.1">>},
      {<<"request">>, BinProplist ++ [{<<"languages">>,?LANGUAGES}]}].
 
--spec send_query(erlzmq_socket(), [string()], [tuple()]) -> ok.
+-spec send_query(erlzmq:erlzmq_socket(), list(), list()) -> ok.
 send_query(Socket, Services, Proplist) ->
     lists:map(fun(Service) -> ok = erlzmq:send(Socket, Service, [sndmore]) end, Services),
     ok = erlzmq:send(Socket, <<>>, [sndmore]),
