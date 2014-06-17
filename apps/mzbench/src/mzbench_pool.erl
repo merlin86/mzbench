@@ -1,6 +1,6 @@
 -module(mzbench_pool).
 
--export([start_link/3,
+-export([start_link/4,
          stop/1
         ]).
 
@@ -25,8 +25,8 @@
 %%% API
 %%%===================================================================
 
-start_link(SuperPid, Pool, Nodes) ->
-    gen_server:start_link(?MODULE, [SuperPid, Pool, Nodes], []).
+start_link(SuperPid, Pool, Env, Nodes) ->
+    gen_server:start_link(?MODULE, [SuperPid, Pool, Env, Nodes], []).
 
 stop(Pid) ->
     gen_server:call(Pid, stop).
@@ -35,9 +35,9 @@ stop(Pid) ->
 %%% gen_server callbacks
 %%%===================================================================
 
-init([SuperPid, Pool, Nodes]) ->
+init([SuperPid, Pool, Env, Nodes]) ->
     Tid = ets:new(pool_workers, [protected, {keypos, 1}]),
-    gen_server:cast(self(), {start_workers, SuperPid, Pool, Nodes}),
+    gen_server:cast(self(), {start_workers, SuperPid, Pool, Env, Nodes}),
     {ok, #s{workers = Tid}}.
 
 handle_call(stop, _From, #s{workers = Tid, name = Name} = State) ->
@@ -55,7 +55,7 @@ handle_call(Req, _From, State) ->
     lager:error("Unhandled call: ~p", [Req]),
     {stop, {unhandled_call, Req}, State}.
 
-handle_cast({start_workers, SuperPid, Pool, Nodes}, #s{workers = Tid} = State) ->
+handle_cast({start_workers, SuperPid, Pool, Env, Nodes}, #s{workers = Tid} = State) ->
     #operation{name = pool, args = [PoolOpts, Script], meta = Meta} = Pool,
     Name = proplists:get_value(pool_name, Meta),
     [Size] = mproplists:get_value(size, PoolOpts, [undefined]),
@@ -64,7 +64,7 @@ handle_cast({start_workers, SuperPid, Pool, Nodes}, #s{workers = Tid} = State) -
     utility:fold_interval(
         fun (N, [NextNode|T]) ->
             WorkerScript = ast:add_meta(Script, [{worker_id, N}, {sample_metrics, SampleMetrics}, {pool_name, Name}]),
-            Args = [NextNode, WorkerScript, WorkerModule, self()],
+            Args = [NextNode, WorkerScript, Env, WorkerModule, self()],
             {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, Args),
             Ref = erlang:monitor(process, P),
             ets:insert(Tid, {P, Ref}),

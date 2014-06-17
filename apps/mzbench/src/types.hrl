@@ -2,6 +2,7 @@
 -type abstract_expr() :: term().
 -type meta() :: [{Key :: atom(), Value :: any()}].
 -type worker_state() :: term().
+-type worker_env() :: [{Key :: any(), Value :: any()}].
 -type script_value() :: term().
 -type script_expr() :: tuple() | script_value().
 -type script_loopspec() :: [tuple()].

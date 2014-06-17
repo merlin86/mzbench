@@ -25,8 +25,8 @@
 
 start_link(SuperPid, Script, Nodes) ->
     case extract_pools(Script) of
-        {ok, Pools} ->
-            gen_server:start_link(?MODULE, [SuperPid, Pools, Nodes], []);
+        {ok, {Pools, Env}} ->
+            gen_server:start_link(?MODULE, [SuperPid, Pools, Env, Nodes], []);
         {error, E} ->
             {error, {shutdown, E}}
     end.
@@ -35,8 +35,8 @@ start_link(SuperPid, Script, Nodes) ->
 %%% gen_server callbacks
 %%%===================================================================
 
-init([SuperPid, Pools, Nodes]) ->
-    gen_server:cast(self(), {start_pools, Pools, alive_nodes(Nodes)}),
+init([SuperPid, Pools, Env, Nodes]) ->
+    gen_server:cast(self(), {start_pools, Pools, Env, alive_nodes(Nodes)}),
     {ok, #state{
         super_pid = SuperPid
     }}.
@@ -45,13 +45,13 @@ handle_call(Req, _From, State) ->
     lager:error("Unhandled call: ~p", [Req]),
     {stop, {unhandled_call, Req}, State}.
 
-handle_cast({start_pools, _Pools, []}, State) ->
+handle_cast({start_pools, _Pools, _Env, []}, State) ->
     lager:error("[ director ] There are no alive nodes to start workers"),
     mzbench_director_sup:stop(State#state.super_pid),
     {stop, empty_nodes, State};
-handle_cast({start_pools, Pools, Nodes}, State) ->
+handle_cast({start_pools, Pools, Env, Nodes}, State) ->
     {noreply, State#state{
-        pools = start_pools(State#state.super_pid, Pools, Nodes, [])
+        pools = start_pools(State#state.super_pid, Pools, Env, Nodes, [])
     }};
 handle_cast(Req, State) ->
     lager:error("Unhandled cast: ~p", [Req]),
@@ -80,24 +80,30 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-start_pools(_, [], _, Acc) ->
+start_pools(_, [], _, _, Acc) ->
     lager:info("[ director ] Started all pools"),
     Acc;
-start_pools(SuperPid, [Pool | Pools], Nodes, Acc)->
-    {ok, Pid} = mzbench_director_sup:start_child(SuperPid, mzbench_pool, [SuperPid, Pool, Nodes]),
+start_pools(SuperPid, [Pool | Pools], Env, Nodes, Acc)->
+    {ok, Pid} = mzbench_director_sup:start_child(SuperPid, mzbench_pool, [SuperPid, Pool, Env, Nodes]),
     Ref = erlang:monitor(process, Pid),
-    start_pools(SuperPid, Pools, Nodes, [{Pid, Ref} | Acc]).
+    start_pools(SuperPid, Pools, Env, Nodes, [{Pid, Ref} | Acc]).
 
 -spec extract_pools([script_expr()]) -> {ok, [#operation{}]} | {error, any()}.
 extract_pools(Script) ->
+    Env = lists:foldl(
+            fun (#operation{name = resource, args = [Name, Data]}, Acc) -> [{{resource, Name}, Data}|Acc];
+                (_, Acc) -> Acc
+            end, [], Script),
+
+    Script2 = lists:filter(fun (#operation{name = pool}) -> true; (_) -> false end, Script),
     Pools = lists:zipwith(fun(Number, #operation{name = pool, meta = Meta} = Op) ->
                                   Op#operation{meta = [{pool_name, "pool" ++ integer_to_list(Number)} | Meta]}
                           end,
-                          lists:seq(1, length(Script)),
-                          Script),
+                          lists:seq(1, length(Script2)),
+                          Script2),
     Errors = lists:flatmap(fun validate_pool/1, Pools),
     case Errors of
-        [] -> {ok, Pools};
+        [] -> {ok, {Pools, Env}};
         _  ->
             lager:error("Script has errors: ~p", [Errors]),
             {error, Errors}

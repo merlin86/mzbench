@@ -1,6 +1,6 @@
 RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 
-.PHONY: all mzbench get-deps compile clean test-unit test-ct check distclean
+.PHONY: all mzbench get-deps compile clean test-unit test-ct check distclean run
 
 REBAR := $(abspath $(shell which ./rebar || which rebar))
 SERVICE_NAME := mzbench

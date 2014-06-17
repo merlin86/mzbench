@@ -14,13 +14,16 @@ main(_) ->
     usage().
 
 run(Script, Host, Cookie) ->
+    CodePaths = [filename:join(filename:dirname(escript:script_name()), "./apps/mzbench/ebin/")|
+                 filelib:wildcard("/usr/local/lib/mzbench/lib/mzbench-*/ebin/")],
+    code:add_pathsz(CodePaths),
     ok = application:start(inets),
     {ok, _} = net_kernel:start([nodename_gen(), shortnames]),
     true = auth:set_cookie(Cookie),
     Node = bench_nodename(Host),
     true == net_kernel:hidden_connect_node(Node) orelse erlang:error({connect_failed, Node}),
-    {ok, ScriptBody} = file:read_file(Script),
-    {ok, Ref} = rpc:call(Node, mzbench_sup, run_script, [Script, erlang:binary_to_list(ScriptBody)]),
+    ScriptBody = mzbench_sup:read_script_silent(Script),
+    {ok, Ref} = rpc:call(Node, mzbench_sup, run_script, [Script, ScriptBody]),
     ok = rpc:call(Node, mzbench_sup, wait_finish, [Ref], infinity),
     io:format("Finished~n").
 

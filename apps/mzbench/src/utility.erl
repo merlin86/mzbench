@@ -15,7 +15,7 @@ taken(Ps, N, Len, L) ->
   taken(proplists:delete(K1, Ps), N-1, Len-1, [V1 | L]).
 
 choose([]) -> erlang:error(badarg);
-choose(List) -> lists:nth(crypto:rand_uniform(1, length(List)), List).
+choose(List) -> lists:nth(crypto:rand_uniform(1, length(List) + 1), List).
 
 choose(N, List) -> taken(List, N).
 
