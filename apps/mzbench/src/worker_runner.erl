@@ -57,7 +57,8 @@ eval_function(#operation{name = loop} = Op, State, WorkerModule) ->
   end;
 eval_function(#operation{name = choose, args = [N, List]}, _, _) -> utility:choose(N, List);
 eval_function(#operation{name = choose, args = List}, _, _) -> utility:choose(List);
-eval_function(#operation{name = random_bytes, args = N}, _, _) -> utility:random_bytes(N);
+eval_function(#operation{name = random_binary, args = [N]}, State, _) -> utility:random_binary(State, N);
+eval_function(#operation{name = random_list, args = [N]}, State, _) -> utility:random_list(State, N);
 eval_function(#operation{} = Op, State, WorkerModule) ->
     %% Eager left-to-right evaluation of parameters.
     {Params, NextState} = eval_expr(Op#operation.args, State, WorkerModule),

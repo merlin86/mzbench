@@ -1,6 +1,6 @@
 -module(utility).
 
--export([choose/1, choose/2, random_bytes/1, fold_interval/4]).
+-export([choose/1, choose/2, random_binary/2, random_list/2, fold_interval/4]).
 
 taken(L, N) ->
      Len = length(L),
@@ -19,7 +19,9 @@ choose(List) -> lists:nth(crypto:rand_uniform(1, length(List)), List).
 
 choose(N, List) -> taken(List, N).
 
-random_bytes(N) -> crypto:rand_bytes(N).
+random_binary(State, N) -> {crypto:rand_bytes(N), State}.
+
+random_list(State, N) -> {erlang:binary_to_list(crypto:rand_bytes(N)), State}.
 
 fold_interval(_, Acc, Start, End) when Start > End -> Acc;
 fold_interval(Fun, Acc, Start, End) ->
