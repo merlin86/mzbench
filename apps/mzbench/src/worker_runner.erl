@@ -29,7 +29,7 @@ run_worker_script(Script, Env, WorkerModule, Pool) ->
     ok.
 
 -spec eval_expr(script_expr(), worker_state(), worker_env(), module())
-    -> {script_value(), worker_state(), worker_env()}.
+    -> {script_value(), worker_state()}.
 eval_expr(#operation{} = Op, State, Env, WorkerModule) ->
     eval_function(Op, State, Env, WorkerModule);
 eval_expr(ExprList, State, Env, WorkerModule) when is_list(ExprList) ->
@@ -46,7 +46,7 @@ eval_expr(Value, State, _Env,  _) -> {Value, State}.
 %% This way eval_functions will be concerned with just evaluating
 %% function parameters and dispatching.
 -spec eval_function(#operation{}, worker_state(), worker_env(), module())
-    -> {script_value(), worker_state(), worker_env()}.
+    -> {script_value(), worker_state()}.
 eval_function(#operation{name = loop} = Op, State, Env, WorkerModule) ->
   [LoopSpec, Body] = Op#operation.args,
   [#constant{value = Rate, units = rps}] = mproplists:get_value(rate, LoopSpec, [#constant{value = undefined, units = rps}]),

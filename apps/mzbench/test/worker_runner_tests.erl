@@ -46,6 +46,6 @@ run(Script) ->
     meck:new(folsom_metrics), % because folsom_metrics requires started folsom app
     meck:expect(folsom_metrics, notify, fun(_,_,_)->ok end),
     meck:expect(folsom_metrics, safely_notify, fun(_,_,_)->ok end),
-    {_, R} = worker_runner:eval_expr(Script, dummy_worker:initial_state(), dummy_worker),
+    {_, R} = worker_runner:eval_expr(Script, dummy_worker:initial_state(), [], dummy_worker),
     meck:unload(folsom_metrics),
     R.

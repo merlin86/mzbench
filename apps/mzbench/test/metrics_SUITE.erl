@@ -107,19 +107,19 @@ all() ->
 
 nonempty(_Config) ->
     worker_runner:eval_expr([#operation{name = print, args = ["Hello"]}],
-                            dummy_worker:initial_state(), dummy_worker),
+                            dummy_worker:initial_state(), [], dummy_worker),
     true = (get_folsom_data() =/= []),
     ok.
 
 empty(_Config) ->
     worker_runner:eval_expr([],
-                            dummy_worker:initial_state(), dummy_worker),
+                            dummy_worker:initial_state(), [], dummy_worker),
     true = (get_folsom_data() == []),
     ok.
 
 sample_metrics(_Config) ->
     worker_runner:eval_expr([#operation{name = print, args = ["Hello"], meta = [{sample_metrics, 0}]}],
-                            dummy_worker:initial_state(), dummy_worker),
+                            dummy_worker:initial_state(), [], dummy_worker),
     true = (get_folsom_data() == []),
     ok.
 
