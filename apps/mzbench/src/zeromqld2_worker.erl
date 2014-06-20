@@ -1,4 +1,4 @@
--module(zeromqapi_worker).
+-module(zeromqld2_worker).
 
 -export([initial_state/0,
          connect/4,
