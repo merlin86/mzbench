@@ -52,7 +52,7 @@ def allocate_hosts(nodes_count, purpose, user):
                                    {'container-template': {
                                         'name':           purpose,
                                         'description':    purpose,
-                                        'container-type': 'dev-base', # FIXME 'erlang',
+                                        'container-type': 'erlang',
                                         'constraint':     'shared',
                                         'quantity':       nodes_count
                                    }}]}, None, user)
