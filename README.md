@@ -180,6 +180,5 @@ See [dummy_worker](apps/mzbench/src/dummy_worker.erl) module as an example.
 
 # Packaging
 
-`make rpm` builds an rpm.
+`make rpm` builds an rpm using fpm.
 
-Build requirements: `gem install fpm` and https://github.com/EchoTeam/service-packager.

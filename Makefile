@@ -4,7 +4,13 @@ RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 
 REBAR := $(abspath $(shell which ./rebar || which rebar))
 SERVICE_NAME := mzbench
-DEFAULT_TARGET_DIR   := $(SERVICE_NAME)
+SERVICE_OWNER := mzbench
+SERVICE_PREFIX := /usr/local/lib
+SERVICE_LOG_DIR= /var/log/${SERVICE_NAME}
+SERVICE_CONFIG_DIR= /etc/${SERVICE_NAME}
+DEFAULT_TARGET_DIR := ${SERVICE_NAME}
+
+PKG_ITERATION := 7
 
 all: get-deps compile
 
@@ -40,9 +46,6 @@ distclean: clean
 dialyzer: .mzbench.plt
 	dialyzer --plt .mzbench.plt apps/mzbench/ebin -I apps/mzbench/src -I deps
 
-rpm: fpm-available service-packager-available
-	service-build-target $(SERVICE_NAME)
-
 generate: get-deps compile rel
 	$(eval relvsn := $(shell bin/relvsn.erl))
 	$(eval target_dir ?= $(DEFAULT_TARGET_DIR))
@@ -50,10 +53,36 @@ generate: get-deps compile rel
 	cp rel/$(target_dir)/releases/$(relvsn)/$(SERVICE_NAME).boot rel/$(target_dir)/releases/$(relvsn)/start.boot #workaround for rebar bug
 	echo $(relvsn) > rel/$(target_dir)/relvsn
 
-target: clean generate
+rpm: generate
+	$(eval relvsn := $(shell bin/relvsn.erl))
+	$(eval epoch := $(shell date +%s))
+	fpm -s dir -t rpm \
+		--after-install=package-scripts/POSTIN \
+		--after-remove=package-scripts/POSTUN \
+		--before-install=package-scripts/PREIN \
+		--before-remove=package-scripts/PREUN \
+		--description="${SERVICE_NAME} service" \
+		--epoch=${epoch} \
+		--iteration ${PKG_ITERATION} \
+		--license Proprietary \
+		--maintainer platform@machinezone.com \
+		--prefix=${SERVICE_PREFIX} \
+		--provides "${SERVICE_NAME} = ${relvsn}" \
+		--rpm-group="${SERVICE_OWNER}" \
+		--rpm-user="${SERVICE_OWNER}" \
+		--template-scripts \
+		--template-value="config_dir=${SERVICE_CONFIG_DIR}" \
+		--template-value="cookie=${SERVICE_NAME}" \
+		--template-value="log_dir=${SERVICE_LOG_DIR}" \
+		--template-value="original_name=${SERVICE_NAME}" \
+		--template-value="owner=${SERVICE_OWNER}" \
+		--template-value="prefix=${SERVICE_PREFIX}" \
+		--vendor MachineZone \
+		-C rel \
+		-d "erlang >= 16.03" \
+		-d sudo \
+		-f \
+		-n ${SERVICE_NAME} \
+		-v ${relvsn} \
+		${SERVICE_NAME}
 
-fpm-available:
-	@which fpm > /dev/null
-
-service-packager-available:
-	@which service-build-target > /dev/null
