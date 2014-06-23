@@ -29,12 +29,14 @@ run(ScriptFileName) -> run(ScriptFileName, application:get_env(mzbench, nodes)).
 
 run(ScriptFileName, undefined) -> run(ScriptFileName, [node()|nodes()]);
 run(ScriptFileName, Nodes) ->
-    Path = case lists:prefix("/", ScriptFileName) of
-               true -> ScriptFileName;
-               _    -> "../../" ++ ScriptFileName
-           end,
-    ScriptBody = read_script(Path),
-    run_script(ScriptFileName, ScriptBody, Nodes).
+    {ok, Cwd} = file:get_cwd(),
+    ok = file:set_cwd("../../"),
+    try
+        ScriptBody = read_script(ScriptFileName),
+        run_script(ScriptFileName, ScriptBody, Nodes)
+    after
+        ok = file:set_cwd(Cwd)
+    end.
 
 run_script(ScriptFileName, ScriptBody) ->
     run_script(ScriptFileName, ScriptBody, application:get_env(mzbench, nodes)).
