@@ -56,7 +56,7 @@ def allocate_hosts(nodes_count, purpose):
                                         'constraint':     'shared',
                                         'quantity':       nodes_count
                                    }}]})
-    hosts = [x.id for x in services[purpose]]
+    hosts = services[purpose]
     print "[ OK ] Allocated %s hosts for '%s': %s" % (nodes_count, purpose, hosts)
     return hosts
 
