@@ -9,7 +9,7 @@ import ansible.runner
 import ansible.inventory
 
 sys.path.append('/platform/platform_mz_cluster')
-from mzcluster import allocate, deallocate
+from cluster_plan import allocate, deallocate
 from process import run_local
 from util import log
 
@@ -47,7 +47,7 @@ def ensure_file(inv, path, content, owner='root', group='root', mode='400'):
 def rand_str(len=20, chars=string.ascii_uppercase):
     return ''.join(random.choice(chars) for _ in range(len))
 
-def allocate_hosts(nodes_count, purpose, user):
+def allocate_hosts(nodes_count, purpose):
     services = allocate(purpose, {'service': [
                                    {'container-template': {
                                         'name':           purpose,
@@ -55,7 +55,7 @@ def allocate_hosts(nodes_count, purpose, user):
                                         'container-type': 'erlang',
                                         'constraint':     'shared',
                                         'quantity':       nodes_count
-                                   }}]}, None, user)
+                                   }}]})
     hosts = [x.id for x in services[purpose]]
     print "[ OK ] Allocated %s hosts for '%s': %s" % (nodes_count, purpose, hosts)
     return hosts
@@ -73,9 +73,6 @@ def run_bench(script, host, cookie):
     run_local(["../run", script, cookie, host])
     print "[ OK ] Finished '%s' on %s" % (script, host)
 
-def destroy_bench(purpose, user):
-    deallocate(purpose, user)
-
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(prog='bench.py')
@@ -88,9 +85,9 @@ if __name__ == "__main__":
         purpose = "bench_" + rand_str(len=10)
         cookie  = rand_str(len=20)
 
-        hosts = allocate_hosts(args['nodes_count'], purpose, user)
+        hosts = allocate_hosts(args['nodes_count'], purpose)
         setup_bench(hosts, cookie)
         run_bench(args['script'][0], hosts[0], cookie)
     except Exception as e:
         log("[ ERROR ] Failed to allocate boxes, rolling back")
-    destroy_bench(purpose, user)
+    deallocate(purpose)
