@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     try:
         user    = os.environ['REMOTE_USER']
-        purpose = "bench_" + rand_str(len=10)
+        purpose = "bench-" + rand_str(len=10)
         cookie  = rand_str(len=20)
 
         hosts = allocate_hosts(args['nodes_count'], purpose)
