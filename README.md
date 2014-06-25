@@ -180,5 +180,8 @@ See [dummy_worker](apps/mzbench/src/dummy_worker.erl) module as an example.
 
 # Packaging
 
-`make rpm` builds an rpm using fpm.
+`make rpm` builds an rpm using fpm. Every run will produce an rpm with a name mzbench-0.1.0-1403686838.x86_64.rpm, that includes current version and epoch time as a portrevision.
+
+`make change-version new-version=X.Y.Z` changes current version of the software to X.Y.Z. This will
+automatically commit the file with version number.
 
