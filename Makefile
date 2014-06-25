@@ -10,8 +10,6 @@ SERVICE_LOG_DIR= /var/log/${SERVICE_NAME}
 SERVICE_CONFIG_DIR= /etc/${SERVICE_NAME}
 DEFAULT_TARGET_DIR := ${SERVICE_NAME}
 
-PKG_ITERATION := 7
-
 all: get-deps compile
 
 run: mzbench
@@ -53,6 +51,15 @@ generate: get-deps compile rel
 	cp rel/$(target_dir)/releases/$(relvsn)/$(SERVICE_NAME).boot rel/$(target_dir)/releases/$(relvsn)/start.boot #workaround for rebar bug
 	echo $(relvsn) > rel/$(target_dir)/relvsn
 
+# RPM creation
+change-version:
+ifndef new-version
+	$(error new-version is undefined, use 'make change-version new-version=X.X.X' command)
+endif
+	$(eval relvsn := $(shell bin/relvsn.erl))
+	sed -i "s/${relvsn}/$(new-version)/g" rel/reltool.config
+	git commit rel/reltool.config -m "Bump mz-bench version to $(new-version)"
+
 rpm: generate
 	$(eval relvsn := $(shell bin/relvsn.erl))
 	$(eval epoch := $(shell date +%s))
@@ -63,7 +70,7 @@ rpm: generate
 		--before-remove=package-scripts/PREUN \
 		--description="${SERVICE_NAME} service" \
 		--epoch=${epoch} \
-		--iteration ${PKG_ITERATION} \
+		--iteration ${epoch} \
 		--license Proprietary \
 		--maintainer platform@machinezone.com \
 		--prefix=${SERVICE_PREFIX} \
