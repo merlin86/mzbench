@@ -83,7 +83,9 @@ def setup_bench(hosts, cookie):
     run_ansible(inv, 'service', {'name': 'mzbench', 'state': 'started'})
     info("mzbench is started")
 
-    run_local(["../wait_cluster_start", cookie, '10000'] + hosts)
+    # For some reason passing argumends as a sequence doesn't work.
+    # wait_cluster_start receives empty argv in that case.
+    run_local(' '.join(["../wait_cluster_start", cookie, '10000'] + hosts))
     info("mzbench nodes ready: %s" % hosts)
 
 def run_bench(script, host, cookie):
