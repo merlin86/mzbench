@@ -53,9 +53,10 @@ generate: get-deps compile rel
 
 # RPM creation
 change-version:
-ifndef new-version
-	$(error new-version is undefined, use 'make change-version new-version=X.X.X' command)
-endif
+	@if test "$(new-version)" = "" ; then \
+		echo "new-version is undefined, use 'make change-version new-version=X.X.X' command"; \
+		exit 1; \
+	fi
 	$(eval relvsn := $(shell bin/relvsn.erl))
 	sed -i "s/${relvsn}/$(new-version)/g" rel/reltool.config
 	git commit rel/reltool.config -m "Bump mz-bench version to $(new-version)"
