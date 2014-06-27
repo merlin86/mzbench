@@ -14,7 +14,7 @@ from process import run_local
 from util import log
 
 def info(msg):
-    log('[ INFO ] ' + msg)
+    print "[ INFO ] %s" % msg
 
 def check_ansible_result(res):
     failures = {}
