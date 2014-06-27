@@ -1,20 +1,3 @@
-/bin/mv -b <%= prefix %>/<%= name %>/bin/<%= name %>.redhat /etc/rc.d/init.d/<%= name %>
-/bin/chown root:root /etc/rc.d/init.d/<%= name %>
-/bin/chmod 0755 /etc/rc.d/init.d/<%= name %>
+#!/bin/sh
 
-if [ $1 = 1 ]; then
-    /sbin/chkconfig --add <%= name %> 
-fi
-
-# logs
-/bin/mkdir -p <%= log_dir %>
-/bin/chmod 0755 <%= log_dir %>
-/bin/chown <%= owner %>:<%= owner %> -R <%= log_dir %>
-
-# binaries
-/bin/chown <%= owner %>:<%= owner %> -R <%= prefix %>/<%= name %>
-/bin/chmod 0755 <%= prefix %>/<%= name %>/bin/<%= name %>
-
-# configs
-# /bin/mkdir -p <%= config_dir %>
-# /bin/cp -n <%= prefix %>/<%= name %>/etc/* <%= config_dir %>/
+<%= prefix %>/<%= name %>/rel/mzbench/bin/mzbench start

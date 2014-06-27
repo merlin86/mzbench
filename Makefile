@@ -3,12 +3,10 @@ RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 .PHONY: all mzbench get-deps compile clean test-unit test-ct check distclean run
 
 REBAR := $(abspath $(shell which ./rebar || which rebar))
-SERVICE_NAME := mzbench
-SERVICE_OWNER := mzbench
-SERVICE_PREFIX := /usr/local/lib
-SERVICE_LOG_DIR= /var/log/${SERVICE_NAME}
-SERVICE_CONFIG_DIR= /etc/${SERVICE_NAME}
-DEFAULT_TARGET_DIR := ${SERVICE_NAME}
+SERVICE_PREFIX=/mz
+SERVICE_LOG_DIR=/var/log/${SERVICE_NAME}
+SERVICE_CONFIG_DIR=/etc/${SERVICE_NAME}
+DEFAULT_TARGET_DIR=${SERVICE_NAME}
 
 all: get-deps compile
 
@@ -65,32 +63,21 @@ rpm: generate
 	$(eval relvsn := $(shell bin/relvsn.erl))
 	$(eval epoch := $(shell date +%s))
 	fpm -s dir -t rpm \
-		--after-install=package-scripts/POSTIN \
-		--after-remove=package-scripts/POSTUN \
-		--before-install=package-scripts/PREIN \
-		--before-remove=package-scripts/PREUN \
+		-f \
+		-v ${relvsn} \
+		-n ${SERVICE_NAME} \
 		--description="${SERVICE_NAME} service" \
 		--epoch=${epoch} \
 		--iteration ${epoch} \
 		--license Proprietary \
 		--maintainer platform@machinezone.com \
+		--vendor MachineZone \
 		--prefix=${SERVICE_PREFIX} \
 		--provides "${SERVICE_NAME} = ${relvsn}" \
-		--rpm-group="${SERVICE_OWNER}" \
-		--rpm-user="${SERVICE_OWNER}" \
-		--template-scripts \
-		--template-value="config_dir=${SERVICE_CONFIG_DIR}" \
-		--template-value="cookie=${SERVICE_NAME}" \
-		--template-value="log_dir=${SERVICE_LOG_DIR}" \
-		--template-value="original_name=${SERVICE_NAME}" \
-		--template-value="owner=${SERVICE_OWNER}" \
 		--template-value="prefix=${SERVICE_PREFIX}" \
-		--vendor MachineZone \
+		--after-install=package-scripts/POSTIN \
+		--after-remove=package-scripts/POSTUN \
 		-C rel \
 		-d "erlang >= 16.03" \
-		-d sudo \
-		-f \
-		-n ${SERVICE_NAME} \
-		-v ${relvsn} \
 		${SERVICE_NAME}
 
