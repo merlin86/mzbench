@@ -12,9 +12,19 @@ sys.path.append('/platform/platform_mz_cluster')
 from cluster_plan import allocate, deallocate
 from process import run_local
 from util import log
+import env
 
 def info(msg):
     print "[ INFO ] %s" % msg
+
+USER_REPO = """[mz-unstable-{0}]
+name=MachineZone unstable {0} repo
+baseurl=http://rpm.addsrv.net/dav/users/{0}/repo/
+enabled=1
+skip_if_unavailable=0
+metadata_expire=300
+sslcacert=/etc/pki/tls/certs/ca-addsrv.pem
+""".format(env.USER)
 
 def check_ansible_result(res):
     failures = {}
@@ -67,7 +77,9 @@ def setup_bench(hosts, cookie):
     inv = ansible.inventory.Inventory(hosts)
     ensure_file(inv, '/root/.erlang.cookie', cookie)
 
-    run_ansible(inv, 'yum', {'name': 'mzbench', 'state': 'present'})
+    ensure_file(inv, '/etc/yum.repos.d/mz-unstable-%s.repo' % env.USER, USER_REPO)
+
+    run_ansible(inv, 'yum', {'name': 'mzbench', 'state': 'present', 'disable_gpg_check': 'yes'})
     info("mzbench rpm is present")
 
     run_ansible(inv, 'command', '/mz/mzbench/bin/mzbench start')
