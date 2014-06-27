@@ -1,3 +1,10 @@
 #!/bin/sh
 
-<%= prefix %>/<%= name %>/rel/mzbench/bin/mzbench start
+# <%= prefix %>/<%= name %>/bin/mzbench start
+
+# Install executables into /usr/local/bin
+
+set -e
+
+mkdir -p /usr/local/bin
+ln -sf "<%= prefix %>/<%= name %>/bin/mzbench" /usr/local/bin/

@@ -47,14 +47,6 @@ def ensure_file(inv, path, content, owner='root', group='root', mode='400'):
                                       'group':   group,
                                       'mode':    mode })
 
-def ensure_dir(inv, path, owner='root'):
-    return run_ansible(inv, 'file',
-            { 'path': path,
-                'state':   'directory',
-                'owner':   'root',
-                'group':   'root'})
-
-
 def rand_str(len=20, chars=string.ascii_uppercase):
     return ''.join(random.choice(chars) for _ in range(len))
 
@@ -74,14 +66,12 @@ def allocate_hosts(nodes_count, purpose):
 def setup_bench(hosts, cookie):
     inv = ansible.inventory.Inventory(hosts)
     ensure_file(inv, '/root/.erlang.cookie', cookie)
-    ensure_dir(inv, '/etc/sudoers.d')
-    ensure_file(inv, '/etc/sudoers.d/root', 'Defaults:root !requiretty\n')
 
-    run_ansible(inv, 'yum',     {'name': 'mzbench', 'state': 'present'})
+    run_ansible(inv, 'yum', {'name': 'mzbench', 'state': 'present'})
     info("mzbench rpm is present")
 
-    run_ansible(inv, 'service', {'name': 'mzbench', 'state': 'started'})
-    info("mzbench is started")
+    run_ansible(inv, 'command', '/mz/mzbench/bin/mzbench start')
+    info("mzbench is running")
 
     # For some reason passing argumends as a sequence doesn't work.
     # wait_cluster_start receives empty argv in that case.

@@ -4,8 +4,8 @@ RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 
 REBAR := $(abspath $(shell which ./rebar || which rebar))
 SERVICE_PREFIX=/mz
+SERVICE_NAME=mzbench
 SERVICE_LOG_DIR=/var/log/${SERVICE_NAME}
-SERVICE_CONFIG_DIR=/etc/${SERVICE_NAME}
 DEFAULT_TARGET_DIR=${SERVICE_NAME}
 
 all: get-deps compile
@@ -46,7 +46,7 @@ generate: get-deps compile rel
 	$(eval relvsn := $(shell bin/relvsn.erl))
 	$(eval target_dir ?= $(DEFAULT_TARGET_DIR))
 	cd rel && $(REBAR) generate -f target_dir=$(target_dir)
-	cp rel/$(target_dir)/releases/$(relvsn)/$(SERVICE_NAME).boot rel/$(target_dir)/releases/$(relvsn)/start.boot #workaround for rebar bug
+	# cp rel/$(target_dir)/releases/$(relvsn)/$(SERVICE_NAME).boot rel/$(target_dir)/releases/$(relvsn)/start.boot #workaround for rebar bug
 	echo $(relvsn) > rel/$(target_dir)/relvsn
 
 # RPM creation
@@ -74,6 +74,7 @@ rpm: generate
 		--vendor MachineZone \
 		--prefix=${SERVICE_PREFIX} \
 		--provides "${SERVICE_NAME} = ${relvsn}" \
+		--template-scripts \
 		--template-value="prefix=${SERVICE_PREFIX}" \
 		--after-install=package-scripts/POSTIN \
 		--after-remove=package-scripts/POSTUN \

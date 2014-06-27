@@ -1,5 +1,5 @@
 #!/bin/sh
 
 if [ $1 -eq 0 ] ; then
-  rm -rf <%= prefix %>/<%= name %>
+  rm -rf /usr/local/bin/mzbench
 fi
