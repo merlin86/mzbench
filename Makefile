@@ -40,7 +40,11 @@ distclean: clean
 	- dialyzer --output_plt .mzbench.plt --build_plt --apps erts kernel stdlib eunit crypto -r deps
 
 dialyzer: .mzbench.plt
-	dialyzer --plt .mzbench.plt apps/mzbench/ebin -I apps/mzbench/src -I deps
+	dialyzer --plt .mzbench.plt apps/mzbench/ebin -I apps/mzbench/src -I deps -o dialyzer.log \
+		-Wunmatched_returns \
+		-Werror_handling \
+		-Wrace_conditions \
+		-Wunderspecs
 
 generate: get-deps compile rel
 	$(eval relvsn := $(shell bin/relvsn.erl))

@@ -6,3 +6,4 @@ deps
 .rebar
 .eunit
 *.plt
+dialyzer.log
