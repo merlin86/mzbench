@@ -22,7 +22,7 @@ name=MachineZone unstable {0} repo
 baseurl=http://rpm.addsrv.net/dav/users/{0}/repo/
 enabled=1
 skip_if_unavailable=0
-metadata_expire=300
+metadata_expire=10
 sslcacert=/etc/pki/tls/certs/ca-addsrv.pem
 """.format(env.USER)
 
@@ -78,15 +78,18 @@ def setup_bench(hosts, cookie):
     ensure_file(inv, '/root/.erlang.cookie', cookie)
 
     ensure_file(inv, '/etc/yum.repos.d/mz-unstable-%s.repo' % env.USER, USER_REPO)
+    ensure_file(inv, '/root/vm.args', """-name %s
+-setcookie %s""" % ('mzbench@{{ inventory_hostname }}', cookie))
 
     run_ansible(inv, 'yum', {'name': 'mzbench', 'state': 'present', 'disable_gpg_check': 'yes'})
     info("mzbench rpm is present")
 
-    run_ansible(inv, 'command', '/mz/mzbench/bin/mzbench start')
+    run_ansible(inv, 'command', 'chdir=/root /mz/mzbench/bin/mzbench start')
     info("mzbench is running")
 
     # For some reason passing argumends as a sequence doesn't work.
     # wait_cluster_start receives empty argv in that case.
+    run_local('/usr/bin/env epmd -daemon')
     run_local(' '.join(["../wait_cluster_start", cookie, '10000'] + hosts))
     info("mzbench nodes ready: %s" % hosts)
 
