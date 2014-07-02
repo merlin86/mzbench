@@ -18,7 +18,7 @@ run(Script, Host, Cookie) ->
                  filelib:wildcard("/mz/mzbench/lib/mzbench-*/ebin/")],
     code:add_pathsz(CodePaths),
     ok = application:start(inets),
-    {ok, _} = net_kernel:start([nodename_gen(), longnames]),
+    {ok, _} = net_kernel:start([nodename_gen(), shortnames]),
     true = auth:set_cookie(Cookie),
     Node = bench_nodename(Host),
     true == net_kernel:hidden_connect_node(Node) orelse erlang:error({connect_failed, Node}),

@@ -55,7 +55,7 @@ nodename_gen() ->
 
 init_net_kernel(Cookie) ->
     ok = application:start(inets),
-    {ok, _} = net_kernel:start([nodename_gen(), longnames]),
+    {ok, _} = net_kernel:start([nodename_gen(), shortnames]),
     true = auth:set_cookie(Cookie),
     ok.
 

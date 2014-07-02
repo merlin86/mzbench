@@ -61,16 +61,17 @@ def rand_str(len=20, chars=string.ascii_uppercase):
     return ''.join(random.choice(chars) for _ in range(len))
 
 def allocate_hosts(nodes_count, purpose):
+    name = 'bench'
     services = allocate(purpose, {'service': [
                                    {'container-template': {
-                                        'name':           purpose,
+                                        'name':           name,
                                         'description':    purpose,
                                         'container-type': 'erlang',
                                         'constraint':     'shared',
                                         'quantity':       nodes_count
                                    }}]})
-    hosts = services[purpose]
-    info("Allocated %s hosts for '%s': %s" % (nodes_count, purpose, hosts))
+    hosts = [name + str(n) for n in range(nodes_count)]
+    info("Allocated %s hosts for '%s': %s" % (nodes_count, purpose, hosts[purpose]))
     return hosts
 
 def setup_bench(hosts, cookie):
@@ -78,12 +79,11 @@ def setup_bench(hosts, cookie):
     ensure_file(inv, '/root/.erlang.cookie', cookie)
 
     ensure_file(inv, '/etc/yum.repos.d/mz-unstable-%s.repo' % env.USER, USER_REPO)
-    ensure_file(inv, '/root/vm.args', """-name %s
--setcookie %s""" % ('mzbench@{{ inventory_hostname }}', cookie))
 
     run_ansible(inv, 'yum', {'name': 'mzbench', 'state': 'present', 'disable_gpg_check': 'yes'})
     info("mzbench rpm is present")
 
+    ensure_file(inv, '/root/vm.args', "-sname mzbench\n-setcookie %s" % cookie)
     run_ansible(inv, 'command', 'chdir=/root /mz/mzbench/bin/mzbench start')
     info("mzbench is running")
 
