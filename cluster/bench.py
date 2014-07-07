@@ -60,7 +60,7 @@ def ensure_file(inv, path, content, owner='root', group='root', mode='400'):
 def rand_str(len=20, chars=string.ascii_uppercase):
     return ''.join(random.choice(chars) for _ in range(len))
 
-def allocate_hosts(nodes_count, purpose):
+def allocate_hosts(nodes_count, purpose, user):
     name = 'bench'
     services = allocate(purpose, {'service': [
                                    {'container-template': {
@@ -70,8 +70,8 @@ def allocate_hosts(nodes_count, purpose):
                                         'constraint':     'shared',
                                         'quantity':       nodes_count
                                    }}]})
-    hosts = [name + str(n) for n in range(nodes_count)]
-    info("Allocated %s hosts for '%s': %s" % (nodes_count, purpose, hosts[purpose]))
+    hosts = [name + str(n) + '.' + purpose + '.' + user + '.virt' for n in range(nodes_count)]
+    info("Allocated %s hosts for '%s': %s" % (nodes_count, purpose, hosts[name]))
     return hosts
 
 def setup_bench(hosts, cookie):
@@ -115,7 +115,7 @@ if __name__ == "__main__":
         info("cookie: {0}".format(cookie))
 
         info("Allocating hosts")
-        hosts = allocate_hosts(args['nodes_count'], purpose)
+        hosts = allocate_hosts(args['nodes_count'], purpose, user)
         info("Got hosts: {0}".format(hosts))
 
         info("Running setup")
