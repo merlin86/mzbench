@@ -11,7 +11,7 @@ import ansible.inventory
 sys.path.append('/platform/platform_mz_cluster')
 from cluster_plan import allocate, deallocate
 from process import run_local
-from util import log
+from util import log, slurp
 import env
 
 def info(msg):
@@ -25,6 +25,9 @@ skip_if_unavailable=0
 metadata_expire=10
 sslcacert=/etc/pki/tls/certs/ca-addsrv.pem
 """.format(env.USER)
+
+def sname(hostname):
+    hostname.split('.')[0]
 
 def check_ansible_result(res):
     failures = {}
@@ -71,7 +74,7 @@ def allocate_hosts(nodes_count, purpose, user):
                                         'quantity':       nodes_count
                                    }}]})
     hosts = [name + str(n) + '.' + purpose + '.' + user + '.virt' for n in range(nodes_count)]
-    info("Allocated %s hosts for '%s': %s" % (nodes_count, purpose, hosts[name]))
+    info("Allocated %s hosts for '%s': %s" % (nodes_count, purpose, services[name]))
     return hosts
 
 def setup_bench(hosts, cookie):
@@ -87,15 +90,17 @@ def setup_bench(hosts, cookie):
     run_ansible(inv, 'command', 'chdir=/root /mz/mzbench/bin/mzbench start')
     info("mzbench is running")
 
-    # For some reason passing argumends as a sequence doesn't work.
-    # wait_cluster_start receives empty argv in that case.
-    run_local('/usr/bin/env epmd -daemon')
-    run_local(' '.join(["../wait_cluster_start", cookie, '10000'] + hosts))
+    inv0 = ansible.inventory.Inventory(hosts[0:1])
+    snames = [sname(h) for h in hosts]
+    run_ansible(inv0, 'command', ' '.join(['/mz/mzbench/bin/wait_cluster_start', cookie, '10000'] + snames))
+
     info("mzbench nodes ready: %s" % hosts)
 
 def run_bench(script, host, cookie):
     info("Running '%s' on %s" % (script, host))
-    run_local(["../run", script, cookie, host])
+    inv0 = ansible.inventory.Inventory([host])
+    ensure_file(inv0, '/root/current.bench', slurp(script)) # TODO copy other bench resources somehow
+    run_ansible(inv0, 'command', ' '.join(['/mz/mzbench/bin/run', '/root/current.bench', cookie, sname(host)]))
     info("[ OK ] Finished '%s' on %s" % (script, host))
 
 if __name__ == "__main__":
