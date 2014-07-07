@@ -27,7 +27,7 @@ sslcacert=/etc/pki/tls/certs/ca-addsrv.pem
 """.format(env.USER)
 
 def sname(hostname):
-    hostname.split('.')[0]
+    return hostname.split('.')[0]
 
 def check_ansible_result(res):
     failures = {}
