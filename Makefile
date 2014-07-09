@@ -50,7 +50,7 @@ generate: get-deps compile rel
 	$(eval relvsn := $(shell bin/relvsn.erl))
 	$(eval target_dir ?= $(DEFAULT_TARGET_DIR))
 	cd rel && $(REBAR) generate -f target_dir=$(target_dir)
-	# cp rel/$(target_dir)/releases/$(relvsn)/$(SERVICE_NAME).boot rel/$(target_dir)/releases/$(relvsn)/start.boot #workaround for rebar bug
+	cp rel/$(target_dir)/releases/$(relvsn)/$(SERVICE_NAME).boot rel/$(target_dir)/releases/$(relvsn)/start.boot #workaround for rebar bug
 	echo $(relvsn) > rel/$(target_dir)/relvsn
 
 # RPM creation
@@ -84,5 +84,5 @@ rpm: generate
 		--after-remove=package-scripts/POSTUN \
 		-C rel \
 		-d "erlang >= 16.03" \
-		${SERVICE_NAME}
+		${DEFAULT_TARGET_DIR}
 
