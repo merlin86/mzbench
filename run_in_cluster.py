@@ -8,7 +8,7 @@ ansible.constants.HOST_KEY_CHECKING = False
 import ansible.runner
 import ansible.inventory
 
-sys.path.append('/platform/platform_mz_cluster')
+sys.path.append('/platform/mz-cluster')
 from cluster_plan import allocate, deallocate
 from process import run_local
 from util import log, slurp
