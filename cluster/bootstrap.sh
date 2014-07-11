@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 yum install ansible
 easy_install argparse
