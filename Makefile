@@ -63,26 +63,26 @@ change-version:
 	sed -i "s/${relvsn}/$(new-version)/g" rel/reltool.config
 	git commit rel/reltool.config -m "Bump mz-bench version to $(new-version)"
 
-rpm: generate
-	$(eval relvsn := $(shell bin/relvsn.erl))
-	$(eval epoch := $(shell date +%s))
-	fpm -s dir -t rpm \
-		-f \
-		-v ${relvsn} \
-		-n ${SERVICE_NAME} \
-		--description="${SERVICE_NAME} service" \
-		--epoch=${epoch} \
-		--iteration ${epoch} \
-		--license Proprietary \
-		--maintainer platform@machinezone.com \
-		--vendor MachineZone \
-		--prefix=${SERVICE_PREFIX} \
-		--provides "${SERVICE_NAME} = ${relvsn}" \
-		--template-scripts \
-		--template-value="prefix=${SERVICE_PREFIX}" \
-		--after-install=package-scripts/POSTIN \
-		--after-remove=package-scripts/POSTUN \
-		-C rel \
-		-d "erlang >= 16.03" \
-		${DEFAULT_TARGET_DIR}
+##
+## RPM
+##
+
+PKG_NAME     = ${SERVICE_NAME}
+PKG_VERSION := $(shell bin/relvsn.erl)
+PKG_PREFIX   = ${SERVICE_PREFIX}
+PKG_DEPENDS  = erlang>=15.03
+
+PKG_AFTER_INSTALL = package-scripts/POSTIN
+PKG_AFTER_REMOVE  = package-scripts/POSTUN
+
+FPMOPTS      = --template-scripts \
+               --template-value="prefix=${SERVICE_PREFIX}"
+
+-include mz-rpm.mk
+
+.PHONY: pkgroot
+pkgroot: generate
+	rm -rf pkgroot
+	mkdir  pkgroot
+	cp -rt pkgroot -- rel/*
 

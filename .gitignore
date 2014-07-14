@@ -6,4 +6,6 @@ deps
 .rebar
 .eunit
 *.plt
+*.rpm
+pkgroot
 dialyzer.log
