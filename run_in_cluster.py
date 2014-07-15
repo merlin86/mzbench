@@ -83,24 +83,24 @@ def setup_bench(hosts, cookie):
 
     ensure_file(inv, '/etc/yum.repos.d/mz-unstable-%s.repo' % env.USER, USER_REPO)
 
-    run_ansible(inv, 'yum', {'name': 'mzbench', 'state': 'present', 'disable_gpg_check': 'yes'})
-    info("mzbench rpm is present")
+    run_ansible(inv, 'yum', {'name': 'mz_bench', 'state': 'present', 'disable_gpg_check': 'yes'})
+    info("mz_bench rpm is present")
 
-    ensure_file(inv, '/root/vm.args', "-sname mzbench\n-setcookie %s" % cookie)
-    run_ansible(inv, 'command', 'chdir=/root /mz/mzbench/bin/mzbench start')
-    info("mzbench is running")
+    ensure_file(inv, '/root/vm.args', "-sname mz_bench\n-setcookie %s" % cookie)
+    run_ansible(inv, 'command', 'chdir=/root /mz/mz_bench/bin/mz_bench start')
+    info("mz_bench is running")
 
     inv0 = ansible.inventory.Inventory(hosts[0:1])
     snames = [sname(h) for h in hosts]
-    run_ansible(inv0, 'command', ' '.join(['/mz/mzbench/bin/wait_cluster_start', cookie, '10000'] + snames))
+    run_ansible(inv0, 'command', ' '.join(['/mz/mz_bench/bin/wait_cluster_start', cookie, '10000'] + snames))
 
-    info("mzbench nodes ready: %s" % hosts)
+    info("mz_bench nodes ready: %s" % hosts)
 
 def run_bench(script, host, cookie):
     info("Running '%s' on %s" % (script, host))
     inv0 = ansible.inventory.Inventory([host])
     ensure_file(inv0, '/root/current.bench', slurp(script)) # TODO copy other bench resources somehow
-    run_ansible(inv0, 'command', ' '.join(['/mz/mzbench/bin/run', '/root/current.bench', cookie, sname(host)]))
+    run_ansible(inv0, 'command', ' '.join(['/mz/mz_bench/bin/run', '/root/current.bench', cookie, sname(host)]))
     info("[ OK ] Finished '%s' on %s" % (script, host))
 
 if __name__ == "__main__":

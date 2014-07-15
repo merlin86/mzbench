@@ -1,4 +1,4 @@
--module(mzbench_director).
+-module(mz_bench_director).
 
 -export([start_link/3]).
 
@@ -47,7 +47,7 @@ handle_call(Req, _From, State) ->
 
 handle_cast({start_pools, _Pools, _Env, []}, State) ->
     lager:error("[ director ] There are no alive nodes to start workers"),
-    mzbench_director_sup:stop(State#state.super_pid),
+    mz_bench_director_sup:stop(State#state.super_pid),
     {stop, empty_nodes, State};
 handle_cast({start_pools, Pools, Env, Nodes}, State) ->
     {noreply, State#state{
@@ -60,8 +60,8 @@ handle_cast(Req, State) ->
 handle_info({'DOWN', Ref, _, Pid, _Reason}, State) ->
     case lists:delete({Pid, Ref}, State#state.pools) of
         [] ->
-            lager:info("[ director ] All pools have finished, stopping mzbench_director_sup ~p", [State#state.super_pid]),
-            mzbench_director_sup:stop(State#state.super_pid),
+            lager:info("[ director ] All pools have finished, stopping mz_bench_director_sup ~p", [State#state.super_pid]),
+            mz_bench_director_sup:stop(State#state.super_pid),
             {noreply, State};
         Pools ->
             {noreply, State#state{pools = Pools}}
@@ -84,7 +84,7 @@ start_pools(_, [], _, _, Acc) ->
     lager:info("[ director ] Started all pools"),
     Acc;
 start_pools(SuperPid, [Pool | Pools], Env, Nodes, Acc)->
-    {ok, Pid} = mzbench_director_sup:start_child(SuperPid, mzbench_pool, [SuperPid, Pool, Env, Nodes]),
+    {ok, Pid} = mz_bench_director_sup:start_child(SuperPid, mz_bench_pool, [SuperPid, Pool, Env, Nodes]),
     Ref = erlang:monitor(process, Pid),
     start_pools(SuperPid, Pools, Env, Nodes, [{Pid, Ref} | Acc]).
 

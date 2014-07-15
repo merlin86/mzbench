@@ -1,5 +1,5 @@
 
-# mzbench
+# mz-bench
 
 Distributed load testing tool.
 
@@ -16,17 +16,17 @@ or
 ```
 make run
 ...
-(erlsh)> mzbench_sup:run("benchmarks/dummy1.erl").
+(erlsh)> mz_bench_sup:run("benchmarks/dummy1.erl").
 ```
 
 ## Configuring statistics export to graphite
 
-You can customize graphite address and port in mzbench section of
-`rel/files/sys.config` or in `rel/mzbench/releases/<release-name>/sys.config`:
+You can customize graphite address and port in mz_bench section of
+`rel/files/sys.config` or in `rel/mz_bench/releases/<release-name>/sys.config`:
 
 ```
   ...
-  {mzbench, [{graphite_host, "localhost"},
+  {mz_bench, [{graphite_host, "localhost"},
              {graphite_port, 2003}]}
   ...
 ```
@@ -176,11 +176,11 @@ a new worker state.
 Functions that are used solely to modify worker state (e.g. logging function)
 return `{nil, NewState}`.
 
-See [dummy_worker](apps/mzbench/src/dummy_worker.erl) module as an example.
+See [dummy_worker](apps/mz_bench/src/dummy_worker.erl) module as an example.
 
 # Packaging
 
-`make rpm` builds an rpm using fpm. Every run will produce an rpm with a name mzbench-0.1.0-1403686838.x86_64.rpm, that includes current version and epoch time as a portrevision.
+`make rpm` builds an rpm using fpm. Every run will produce an rpm with a name mz-bench-0.1.0-1403686838.x86_64.rpm, that includes current version and epoch time as a portrevision.
 
 `make change-version new-version=X.Y.Z` changes current version of the software to X.Y.Z. This will
 automatically commit the file with version number.

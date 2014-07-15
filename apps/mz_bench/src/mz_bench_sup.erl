@@ -1,4 +1,4 @@
--module(mzbench_sup).
+-module(mz_bench_sup).
 
 -export([start_link/0,
          is_ready/0,
@@ -25,7 +25,7 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-run(ScriptFileName) -> run(ScriptFileName, application:get_env(mzbench, nodes)).
+run(ScriptFileName) -> run(ScriptFileName, application:get_env(mz_bench, nodes)).
 
 run(ScriptFileName, undefined) -> run(ScriptFileName, [node()|nodes()]);
 run(ScriptFileName, Nodes) ->
@@ -39,7 +39,7 @@ run(ScriptFileName, Nodes) ->
     end.
 
 run_script(ScriptFileName, ScriptBody) ->
-    run_script(ScriptFileName, ScriptBody, application:get_env(mzbench, nodes)).
+    run_script(ScriptFileName, ScriptBody, application:get_env(mz_bench, nodes)).
 run_script(ScriptFileName, ScriptBody, undefined) ->
     run_script(ScriptFileName, ScriptBody, [node()|nodes()]);
 run_script(ScriptFileName, ScriptBody, Nodes) ->
@@ -97,7 +97,7 @@ parse_script(Body) ->
 is_ready() ->
     try
         Apps = application:which_applications(),
-        false =/= lists:keyfind(mzbench, 1, Apps)
+        false =/= lists:keyfind(mz_bench, 1, Apps)
     catch
         _:Error ->
             lager:error("is_ready exception: ~p~nStacktrace: ~p", [Error, erlang:get_stacktrace()]),
@@ -130,7 +130,7 @@ wait_finish(Pid, Timeout) ->
 
 init([]) ->
     {ok, {{simple_one_for_one, 0, 1}, [
-        child_spec(mzbench_director_sup, [])
+        child_spec(mz_bench_director_sup, [])
     ]}}.
 
 %%%===================================================================

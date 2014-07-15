@@ -11,7 +11,7 @@ initial_state() -> "".
 
 -spec print(state(), meta(), string()) -> {nil, state()}.
 print(State, Meta, Text) ->
-    mzbench_metrics:notify_counter(Meta),
+    mz_bench_metrics:notify_counter(Meta),
 
     lager:info("Appending ~p, Meta: ~p~n", [Text, Meta]),
     {nil, State ++ Text}.

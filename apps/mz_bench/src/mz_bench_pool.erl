@@ -1,4 +1,4 @@
--module(mzbench_pool).
+-module(mz_bench_pool).
 
 -export([start_link/4,
          stop/1
@@ -65,7 +65,7 @@ handle_cast({start_workers, SuperPid, Pool, Env, Nodes}, #s{workers = Tid} = Sta
         fun (N, [NextNode|T]) ->
             WorkerScript = ast:add_meta(Script, [{worker_id, N}, {sample_metrics, SampleMetrics}, {pool_name, Name}]),
             Args = [NextNode, WorkerScript, Env, WorkerModule, self()],
-            {ok, P} = mzbench_director_sup:start_child(SuperPid, worker_runner, Args),
+            {ok, P} = mz_bench_director_sup:start_child(SuperPid, worker_runner, Args),
             Ref = erlang:monitor(process, P),
             ets:insert(Tid, {P, Ref}),
             T ++ [NextNode]

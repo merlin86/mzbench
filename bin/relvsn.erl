@@ -8,7 +8,7 @@ main([]) ->
             Sys = proplists:get_value(sys, Reltool),
             lists:foldl(fun(X, Acc)->
                 case X of
-                    {rel, "mzbench", VSN, _} -> VSN;
+                    {rel, "mz_bench", VSN, _} -> VSN;
                     _ -> Acc
                 end
             end, "", Sys);

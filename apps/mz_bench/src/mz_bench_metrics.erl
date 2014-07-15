@@ -1,4 +1,4 @@
--module(mzbench_metrics).
+-module(mz_bench_metrics).
 
 -export([start_link/3,
          notify_counter/1,
@@ -93,7 +93,7 @@ tick(#s{prefix = Prefix, nodes = Nodes, supervisor_pid = SuperPid} = _State) ->
 
     Values = lists:flatmap(
         fun (N) ->
-            case rpc:call(N, mzbench_metrics, get_metrics_values, [Prefix]) of
+            case rpc:call(N, mz_bench_metrics, get_metrics_values, [Prefix]) of
                 {badrpc, Reason} ->
                     lager:error("Failed to request metrics from node ~p (~p)", [N, Reason]),
                     [];
@@ -120,7 +120,7 @@ get_metric_type(M) ->
     lists:last(string:tokens(M, ".")).
 
 send_to_graphite(SuperPid, Values) ->
-    case mzbench_director_sup:get_graphite_client(SuperPid) of
+    case mz_bench_director_sup:get_graphite_client(SuperPid) of
         noclient -> ok;
         {ok, GraphiteClient} ->
             {Mega, Secs, _} = now(),
@@ -170,6 +170,6 @@ extract_metric_prefix(Meta) ->
     case Prefix of
         undefined ->
             lager:error("Missing metric_prefix in meta: ~p", [Meta]),
-            "mzbench.undefined";
+            "mz_bench.undefined";
         _ -> re:replace(Prefix, "POOL", PoolName, [{return, list}])
     end.

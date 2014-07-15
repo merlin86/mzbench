@@ -1,4 +1,4 @@
-{application, mzbench,
+{application, mz_bench,
  [
   {description, ""},
   {vsn, "0.1.0"},
@@ -11,6 +11,6 @@
                   jsx,
                   erlzmq
                  ]},
-  {mod, { mzbench_app, []}},
+  {mod, { mz_bench_app, []}},
   {env, []}
  ]}.

@@ -3,7 +3,7 @@
 
 -export([stop/2]).
 
--define(MZBENCH_NODE,  "mzbench").
+-define(MZBENCH_NODE,  "mz_bench").
 
 main([Cookie, TimeoutStr | Hosts]) ->
     Timeout =
@@ -71,7 +71,7 @@ spawn_is_ready(Node) ->
 is_node_ready(Node) ->
     Res = try
         case net_kernel:hidden_connect_node(Node) of
-            true  -> rpc:call(Node, mzbench_sup, is_ready, []);
+            true  -> rpc:call(Node, mz_bench_sup, is_ready, []);
             false -> false
         end
     catch
@@ -95,7 +95,7 @@ stop(Pid, Reason) ->
     halt(1).
 
 connect_nodes(Nodes = [N | _]) ->
-    ConnectedNodes = rpc:call(N, mzbench_sup, connect_nodes, [Nodes]),
+    ConnectedNodes = rpc:call(N, mz_bench_sup, connect_nodes, [Nodes]),
     case Nodes -- ConnectedNodes of
         [] ->
             io:format("All nodes are connected~n");

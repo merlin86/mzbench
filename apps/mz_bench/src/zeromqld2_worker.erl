@@ -51,7 +51,7 @@ connect(#s{services = Services} = State, _Meta, Identity, Address) ->
 %% send and wait for reply on language detection query
 -spec detect(state(), meta(), string(), string()) -> {nil, state()}.
 detect(#s{socket = Socket, services = Services} = State, Meta, Text, Lang) ->
-    mzbench_metrics:notify_counter(Meta),
+    mz_bench_metrics:notify_counter(Meta),
     send_query(Socket, Services, [{"text", Text}, {"keyboard_lang", Lang}]),
     lager:info("Sent '~p' ~p~n", [Text, Lang]),
     Answer = get_answer(Socket),

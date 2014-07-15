@@ -2,5 +2,5 @@
 set -e
 
 if [ $1 -eq 0 ] ; then
-  rm -rf /usr/local/bin/mzbench
+  rm -rf /usr/local/bin/mz_bench
 fi

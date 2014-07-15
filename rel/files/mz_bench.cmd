@@ -1,6 +1,6 @@
 @setlocal
 
-@set node_name=mzbench
+@set node_name=mz_bench
 
 @rem Get the absolute path to the parent directory,
 @rem which is assumed to be the node root.

@@ -1,10 +1,10 @@
 #!/bin/sh
 
-# <%= prefix %>/<%= name %>/bin/mzbench start
+# <%= prefix %>/<%= name %>/bin/mz_bench start
 
 # Install executables into /usr/local/bin
 
 set -e
 
 mkdir -p /usr/local/bin
-ln -sf "<%= prefix %>/<%= name %>/bin/mzbench" /usr/local/bin/
+ln -sf "<%= prefix %>/<%= name %>/bin/mz_bench" /usr/local/bin/

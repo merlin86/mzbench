@@ -1,19 +1,20 @@
 RUN_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 
-.PHONY: all mzbench get-deps compile clean test-unit test-ct check distclean run
+.PHONY: all mz_bench get-deps compile clean test-unit test-ct check distclean run
 
 REBAR := $(abspath $(shell which ./rebar || which rebar))
 SERVICE_PREFIX=/mz
-SERVICE_NAME=mzbench
+RPM_NAME=mz-bench
+SERVICE_NAME=mz_bench
 SERVICE_LOG_DIR=/var/log/${SERVICE_NAME}
 DEFAULT_TARGET_DIR=${SERVICE_NAME}
 
 all: get-deps compile
 
-run: mzbench
-	./rel/mzbench/bin/mzbench console $(realpath $(RUN_ARGS))
+run: mz_bench
+	./rel/mz_bench/bin/mz_bench console $(realpath $(RUN_ARGS))
 
-mzbench: compile
+mz_bench: compile
 	$(REBAR) generate
 
 compile:
@@ -34,13 +35,13 @@ clean:
 	$(REBAR) clean
 
 distclean: clean
-	rm -rf ./deps .mzbench.plt
+	rm -rf ./deps .mz_bench.plt
 
-.mzbench.plt:
-	- dialyzer --output_plt .mzbench.plt --build_plt --apps erts kernel stdlib eunit crypto -r deps
+.mz_bench.plt:
+	- dialyzer --output_plt .mz_bench.plt --build_plt --apps erts kernel stdlib eunit crypto -r deps
 
-dialyzer: .mzbench.plt
-	- dialyzer --plt .mzbench.plt apps/mzbench/ebin -I apps/mzbench/src -I deps -o dialyzer.log \
+dialyzer: .mz_bench.plt
+	- dialyzer --plt .mz_bench.plt apps/mz_bench/ebin -I apps/mz_bench/src -I deps -o dialyzer.log \
 		-Wunmatched_returns \
 		-Werror_handling \
 		-Wrace_conditions \

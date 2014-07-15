@@ -1,6 +1,6 @@
 apps/*/ebin
 apps/*/logs
-rel/mzbench
+rel/mz_bench
 deps
 *.beam
 .rebar

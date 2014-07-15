@@ -1,8 +1,8 @@
 #!/usr/bin/env escript
 -mode(compile).
 
--define(MZBENCH_NODE,  "mzbench").
--define(DEFAULT_MZBENCH_COOKIE, mzbench).
+-define(MZBENCH_NODE,  "mz_bench").
+-define(DEFAULT_MZBENCH_COOKIE, mz_bench).
 
 main([ScriptName]) ->
     run(ScriptName, localhost, ?DEFAULT_MZBENCH_COOKIE);
@@ -14,17 +14,17 @@ main(_) ->
     usage().
 
 run(Script, Host, Cookie) ->
-    CodePaths = [filename:join(filename:dirname(escript:script_name()), "./apps/mzbench/ebin/")|
-                 filelib:wildcard("/mz/mzbench/lib/mzbench-*/ebin/")],
+    CodePaths = [filename:join(filename:dirname(escript:script_name()), "./apps/mz_bench/ebin/")|
+                 filelib:wildcard("/mz/mz_bench/lib/mz_bench-*/ebin/")],
     code:add_pathsz(CodePaths),
     ok = application:start(inets),
     {ok, _} = net_kernel:start([nodename_gen(), shortnames]),
     true = auth:set_cookie(Cookie),
     Node = bench_nodename(Host),
     true == net_kernel:hidden_connect_node(Node) orelse erlang:error({connect_failed, Node}),
-    ScriptBody = mzbench_sup:read_script_silent(Script),
-    {ok, Ref} = rpc:call(Node, mzbench_sup, run_script, [Script, ScriptBody]),
-    ok = rpc:call(Node, mzbench_sup, wait_finish, [Ref], infinity),
+    ScriptBody = mz_bench_sup:read_script_silent(Script),
+    {ok, Ref} = rpc:call(Node, mz_bench_sup, run_script, [Script, ScriptBody]),
+    ok = rpc:call(Node, mz_bench_sup, wait_finish, [Ref], infinity),
     io:format("Finished~n").
 
 nodename_gen() ->
