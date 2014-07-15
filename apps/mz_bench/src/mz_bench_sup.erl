@@ -54,10 +54,6 @@ read_script(Path) ->
     try
         read_script_silent(Path)
     catch
-        C:{resource_error, P, Error} = E ->
-            ST = erlang:get_stacktrace(),
-            lager:error("Can't read resource file: ~p 'cause of ~p", [P, Error]),
-            erlang:raise(C,E,ST);
         C:{parse_error, {_, Module, ErrorInfo}} = E ->
             ST = erlang:get_stacktrace(),
             lager:error("Parsing script file failed: ~s", [Module:format_error(ErrorInfo)]),
@@ -68,25 +64,13 @@ read_script(Path) ->
             erlang:raise(C,E,ST)
     end.
 
-preprocess(Script) ->
-    lists:map(
-        fun (#operation{name = include_resource, args = [Name, Path]}) ->
-            case file:consult(Path) of
-                {ok, [Terms]} ->
-                    #operation{name = resource, args = [Name, Terms]};
-                {error, Error} ->
-                    erlang:error({resource_error, Path, Error})
-            end;
-            (T) -> T
-        end, Script).
-
 -spec parse_script(string()) -> [script_expr()].
 parse_script(Body) ->
     case erl_scan:string(Body) of
         {ok, Ts, _} ->
             case erl_parse:parse_exprs(Ts) of
                 {ok, [AST]} ->
-                    preprocess(ast:transform(AST));
+                    ast:transform(AST);
                 {error, Error} ->
                     erlang:error({parse_error, Error})
             end;

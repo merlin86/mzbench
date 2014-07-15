@@ -1,10 +1,10 @@
 [
- {include_resource, text, "benchmarks/text.txt"},
+ {include_resource, text, "text.txt"},
  {pool, [{size, 3},
          {worker_type, dummy_worker}],
   [{loop, [{time, {5, sec}},
            {rate, {1, rps}}],
-    [{print, "FOO"}]}]},
+    [{print, {env, "xterm"}}]}]},
 
  {pool, [{size, 60},
          {worker_type, dummy_worker}],

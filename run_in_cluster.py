@@ -96,21 +96,30 @@ def setup_bench(hosts, cookie):
 
     info("mz_bench nodes ready: %s" % hosts)
 
-def run_bench(script, env, host, cookie):
-    info("Running '%s' on %s" % (script, host))
+def run_bench(script, host, cookie):
+    
     inv0 = ansible.inventory.Inventory([host])
     ensure_file(inv0, '/root/current.bench', slurp(script))
-    cmd = ['/bin/env'] + env + ['/mz/mz_bench/bin/run', '/root/current.bench', cookie, sname(host)]
+    cmd = ['/mz/mz_bench/bin/run', '/root/current.bench', cookie, sname(host)]
     run_ansible(inv0, 'command', ' '.join(cmd))
     info("[ OK ] Finished '%s' on %s" % (script, host))
 
+def gettemppath():
+    import tempfile
+    return tempfile.gettempdir() + '/current.bench'
+
 if __name__ == "__main__":
+
+
     import argparse
     parser = argparse.ArgumentParser(prog='bench.py')
     parser.add_argument('script', nargs=1, help='Name of bench script to run')
     parser.add_argument('--nodes', type=int, metavar='N', default=1, help='Amount of nodes to allocate, defaults to 1')
-    parser.add_argument('--env', nargs='+', metavar='KEY=VALUE', default=[], help='Will be passed to script as environment variable')
     args = vars(parser.parse_args())
+
+    script = gettemppath()
+    run_local('/mz/mzbench/bin/preprocess.escript ' + args['script'][0] + ' >' + script)
+
     try:
         user    = os.environ['REMOTE_USER']
         purpose = "bench-" + rand_str(len=10)
@@ -127,9 +136,8 @@ if __name__ == "__main__":
         info("Running setup")
         setup_bench(hosts, cookie)
 
-        info("Running script")
-        
-        run_bench(args['script'][0], args['env'], hosts[0], cookie)
+        info("Running '%s' on %s" % (args['script'][0], hosts[0]))
+        run_bench(script, hosts[0], cookie)
     except Exception as e:
         log("[ ERROR ] Failed to allocate boxes, rolling back")
         log(e)
