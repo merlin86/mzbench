@@ -9,7 +9,8 @@
          run_script/3,
          wait_finish/1,
          wait_finish/2,
-         read_script_silent/1
+         read_script_silent/1,
+         macroexpand/1
         ]).
 
 -behaviour(supervisor).
@@ -45,10 +46,15 @@ run_script(ScriptFileName, ScriptBody, undefined) ->
 run_script(ScriptFileName, ScriptBody, Nodes) ->
     supervisor:start_child(?MODULE, [ScriptFileName, ScriptBody, Nodes]).
 
+macroexpand(Path) ->
+    Terms = read_file(Path),
+    Ctx = [{file_dir, filename:dirname(Path)}],
+    walk(Terms, Ctx, fun(F) -> F end, fun expand_macros/2).
+
 % "no logs" reader (used in escripts)
 read_script_silent(Path) ->
-    {ok, ScriptBody} = file:read_file(Path),
-    parse_script(erlang:binary_to_list(ScriptBody)).
+    Body = io_lib:format("~p", [macroexpand(Path)]),
+    parse_script(Body).
 
 read_script(Path) ->
     try
@@ -123,3 +129,28 @@ init([]) ->
 
 child_spec(I, Args) ->
     {I, {I, start_link, Args}, transient, infinity, supervisor, [I]}.
+
+walk(Form, Ctx, Pre, Post) ->
+    Form1 = Pre(Form, Ctx),
+    Form2 = case Form1 of
+        _ when is_list(Form1) ->
+            lists:map(fun(F) -> walk(F, Ctx, Pre, Post) end, Form1);
+        _ when is_tuple(Form1) ->
+            map_tuple(fun(F) -> walk(F, Ctx, Pre, Post) end, Form1);
+        _ ->
+            Form1
+    end,
+    Post(Form2, Ctx).
+
+expand_macros({include_resource, N, F}, Ctx) ->
+    {resource, N, read_file(proplists:get_value(file_dir, Ctx) ++ "/" ++ F)};
+expand_macros({env, N}, _Ctx) ->
+    os:getenv(N);
+expand_macros(F, _Ctx) -> F.
+
+map_tuple(F, T) ->
+    list_to_tuple(lists:map(F, tuple_to_list(T))).
+
+read_file(File) ->
+    {ok, [Content]} = file:consult(File),
+    Content.
