@@ -49,11 +49,11 @@ run_script(ScriptFileName, ScriptBody, Nodes) ->
 macroexpand(Path) ->
     Terms = read_file(Path),
     Ctx = [{file_dir, filename:dirname(Path)}],
-    walk(Terms, Ctx, fun(F) -> F end, fun expand_macros/2).
+    walk(Terms, Ctx, fun(F, _) -> F end, fun expand_macros/2).
 
 % "no logs" reader (used in escripts)
 read_script_silent(Path) ->
-    Body = io_lib:format("~p", [macroexpand(Path)]),
+    Body = lists:flatten(io_lib:format("~p.", [macroexpand(Path)])),
     parse_script(Body).
 
 read_script(Path) ->
