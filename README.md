@@ -62,6 +62,8 @@ Following operations are built-in (supported for any worker_type):
 {choose, List} -- choose random element from List
 {choose, N, List} -- choose N random elements from List
 {loop, LoopOptions, OperationsList} -- execute OperationsList with specific options
+{env, String} -- get string value of given environment variable. Director node environment is used.
+    If environment variable with given name is unset, bench process will crash.
 ```
 
 LoopOptions are:

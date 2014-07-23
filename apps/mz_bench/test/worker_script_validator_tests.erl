@@ -15,7 +15,7 @@ validation_ok_larger_test() ->
                        {rate, {1, rps}}],
                 [{print, {choose, \"queue1\", \"queue2\", \"queue3\", \"queue4\"}}]},
                {loop, [{rate, {10, rps}}],
-                [{print, {choose, \"queue1\", \"queue2\", \"queue3\"}}]}
+                [{print, {choose, \"queue1\", \"queue2\", {env, \"QUEUE_ENV_VAR\"}}}]}
               ].",
     ?assertEqual(ok, check(Script)).
 
