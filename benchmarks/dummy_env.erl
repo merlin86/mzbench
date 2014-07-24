@@ -1,5 +1,6 @@
 [
     {include_resource, text, "benchmarks/text.txt"},
+    {use_graphite, {env, "GRAPHITE_HOST"}},
     {pool, [{size, 3},
             {worker_type, dummy_worker}],
         [{loop, [{time, {5, sec}},

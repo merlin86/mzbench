@@ -58,6 +58,14 @@ eval_function(#operation{name = loop} = Op, State, Env, WorkerModule) ->
 eval_function(#operation{name = choose, args = Args}, State, Env, _) -> choose(Args, State, Env);
 eval_function(#operation{name = random_binary, args = [N]}, State, _Env, _) -> {utility:random_binary(N), State};
 eval_function(#operation{name = random_list, args = [N]}, State, _Env, _) -> {utility:random_list(N), State};
+eval_function(#operation{name = use_graphite, args = [Addr]}, State, _Env, _) ->
+  {H, P} = case string:tokens(Addr, ":") of
+    [Host]       -> {Host, 2003};
+    [Host, Port] -> {Host, list_to_integer(Port)}
+  end,
+  application:set_env(mz_bench, graphite_port, P),
+  application:set_env(mz_bench, graphite_host, H),
+  {nil, State};
 eval_function(#operation{} = Op, State, Env, WorkerModule) ->
     %% Eager left-to-right evaluation of parameters.
     {Params, NextState} = eval_expr(Op#operation.args, State, Env, WorkerModule),

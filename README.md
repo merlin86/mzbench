@@ -64,6 +64,7 @@ Following operations are built-in (supported for any worker_type):
 {loop, LoopOptions, OperationsList} -- execute OperationsList with specific options
 {env, String} -- get string value of given environment variable. Director node environment is used.
     If environment variable with given name is unset, bench process will crash.
+{use_graphite, HostAndPort} -- send data to this graphite, e.g. {use_graphite, "localhost:2003"}
 ```
 
 LoopOptions are:

@@ -1,5 +1,6 @@
 [
  {include_resource, text, "text.txt"},
+ {use_graphite, "p2.virt.tld:2003"},
  {pool, [{size, 3},
          {worker_type, dummy_worker}],
   [{loop, [{time, {5, sec}},
