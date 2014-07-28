@@ -97,7 +97,6 @@ def setup_bench(hosts, cookie):
     info("mz_bench nodes ready: %s" % hosts)
 
 def run_bench(script, host, cookie):
-    
     inv0 = ansible.inventory.Inventory([host])
     ensure_file(inv0, '/root/current.bench', slurp(script))
     cmd = ['/mz/mz_bench/bin/run', '/root/current.bench', cookie, sname(host)]
@@ -109,16 +108,15 @@ def gettemppath():
     return tempfile.gettempdir() + '/current.bench'
 
 if __name__ == "__main__":
-
-
     import argparse
-    parser = argparse.ArgumentParser(prog='bench.py')
+    parser = argparse.ArgumentParser(prog='run_in_cluster.py')
     parser.add_argument('script', nargs=1, help='Name of bench script to run')
     parser.add_argument('--nodes', type=int, metavar='N', default=1, help='Amount of nodes to allocate, defaults to 1')
     args = vars(parser.parse_args())
 
+    path = os.path.abspath(os.path.dirname(sys.argv[0]))
     script = gettemppath()
-    run_local('/mz/mzbench/bin/preprocess.escript ' + args['script'][0] + ' >' + script)
+    run_local(path + '/preprocess.escript ' + args['script'][0] + ' >' + script)
 
     try:
         user    = os.environ['REMOTE_USER']
