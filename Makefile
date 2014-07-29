@@ -71,7 +71,8 @@ change-version:
 PKG_NAME     = ${SERVICE_NAME}
 PKG_VERSION := $(shell bin/relvsn.erl)
 PKG_PREFIX   = ${SERVICE_PREFIX}
-PKG_DEPENDS  = erlang>=15.03
+PKG_DEPENDS  = erlang>=15.03 \
+               mz-cluster
 
 PKG_AFTER_INSTALL = package-scripts/POSTIN
 PKG_AFTER_REMOVE  = package-scripts/POSTUN
