@@ -120,7 +120,7 @@ normalize_bench({Id, Status = #{config:= Config}}) ->
 %% Filtering
 
 apply_filter(TimelineOpts, BenchInfos) -> 
-    Query = maps:get(<<"q">>, TimelineOpts, undefined),
+    Query = mzb_bc:maps_get(<<"q">>, TimelineOpts, undefined),
     case Query of
         undefined -> BenchInfos;
         Q -> [Bench || Bench <- BenchInfos, is_satisfy_filter(Q, Bench)]
@@ -167,10 +167,10 @@ index_of(Id, [#{id:= Id}|_], Index) -> Index;
 index_of(Id, [_|Tl], Index) -> index_of(Id, Tl, Index+1).
 
 apply_pagination(Pagination, BenchInfos) ->
-    Limit = maps:get(<<"limit">>, Pagination, 10),
-    MaxId = maps:get(<<"max_id">>, Pagination, undefined),
-    MinId = maps:get(<<"min_id">>, Pagination, undefined),
-    BenchId = maps:get(<<"bench_id">>, Pagination, undefined),
+    Limit = mzb_bc:maps_get(<<"limit">>, Pagination, 10),
+    MaxId = mzb_bc:maps_get(<<"max_id">>, Pagination, undefined),
+    MinId = mzb_bc:maps_get(<<"min_id">>, Pagination, undefined),
+    BenchId = mzb_bc:maps_get(<<"bench_id">>, Pagination, undefined),
 
     Bounded = apply_boundaries({MinId, MaxId}, BenchInfos, fun(A, B) -> A < B end),
     Limited = apply_limit({BenchId, MinId, MaxId}, Limit, Bounded),
