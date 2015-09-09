@@ -101,14 +101,14 @@ normalize(BenchInfos) ->
     lists:map(fun normalize_bench/1, Sorted).
 
 normalize_bench({Id, Status = #{config:= Config}}) ->
-    StatusFields =  maps:with([status, metrics], Status),
+    StatusFields =  mzb_bc:maps_with([status, metrics], Status),
 
     TimeFields = maps:fold(fun (K, V, AccIn) when is_number(V) ->
                                    maps:put(K, mzb_string:iso_8601_fmt(V), AccIn);
                                (_, _, AccIn) -> AccIn
                            end,
                            #{},
-                           maps:with([finish_time, start_time], Status)),
+                           mzb_bc:maps_with([finish_time, start_time], Status)),
 
     #{script:= #{body:= ScriptBody, name:= ScriptName}} = Config,
     ScriptFields = #{script_body => ScriptBody, script_name => ScriptName},
@@ -127,7 +127,7 @@ apply_filter(TimelineOpts, BenchInfos) ->
     end.
 
 get_searchable_fields(BenchInfo) ->
-    SearchFields = maps:with([id, status, script_name, start_time, finish_time], BenchInfo),
+    SearchFields = mzb_bc:maps_with([id, status, script_name, start_time, finish_time], BenchInfo),
     Values = maps:values(SearchFields),
     lists:map(fun (X) when is_atom(X) -> atom_to_list(X);
                   (X) when is_integer(X) -> integer_to_list(X);

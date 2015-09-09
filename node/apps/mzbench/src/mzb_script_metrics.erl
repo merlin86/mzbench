@@ -141,7 +141,7 @@ build_metric_groups_json(Groups) ->
 
             MetricMap = lists:flatmap(fun({Name, Type, Opts}) ->
                 DPs = [mzb_metrics:datapoint2str(DP) || DP <- mzb_metrics:datapoints(Type)],
-                Opts1 = maps:without([rps, worker], Opts),
+                Opts1 = mzb_bc:maps_without([rps, worker], Opts),
                 [Opts1#{name => (Name ++ "."++ S)} || S <- DPs]
             end, Metrics),
 

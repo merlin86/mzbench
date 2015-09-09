@@ -45,7 +45,10 @@ init([Id, Params]) ->
     % {{_, M, D}, {H, Mi, S}} = calendar:now_to_universal_time(now()),
     % Purpose = mzb_string:format("bench-~2.10.0B-~2.10.0B-~2.10.0B-~2.10.0B-~2.10.0B-~b", [M,D,H,Mi,S,Id]),
     Purpose = mzb_string:format("bench-~b-~b", [Id, StartTime]),
-    Includes = maps:get(includes, Params, []),
+    Includes = case maps:find(includes, Params) of
+        {ok, L} -> L;
+        _ -> []
+    end,
     VMArgs = case maps:find(vm_args, Params) of
         {ok, [_|_] = List} -> List;
         _ -> application:get_env(mzbench_api, vm_args, undefined)
@@ -371,7 +374,7 @@ send_email_report(_Emails, Status) ->
     {error, {badarg, Status}}.
 
 status(State) ->
-    maps:with([id, status, start_time, finish_time, config, metrics], State).
+    mzb_bc:maps_with([id, status, start_time, finish_time, config, metrics], State).
 
 get_cloud_provider() ->
     {ok, {_Type, Name}} = application:get_env(mzbench_api, cloud_plugin),

@@ -2,8 +2,7 @@ language: erlang
 
 otp_release:
  - 18.0
- - 17.5
- - 17.4
+ - 17.0
 
 env:
  - TASK=lint
@@ -17,11 +16,6 @@ env:
  - TASK=acceptance-signal-tests
  - TASK=acceptance-negative-tests
  - TASK=http-worker-tests
-
-matrix:
- exclude:
-  - otp_release: 17.3
-    env: TASK=lint
 
 script:
  - export PROJECTS="node server common_apps/mzbench_language common_apps/mzbench_utils";
