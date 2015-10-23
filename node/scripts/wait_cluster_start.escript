@@ -30,13 +30,6 @@ main([TimeoutStr | NodesStr]) ->
 
     init_net_kernel(),
 
-    true = ensure_hostnames_are_resolvable(Hostnames),
-    io:format("~p hostnames are resolvable~n", [os:timestamp()]),
-    true = ensure_hostnames_are_reachable_from_director(Hostnames),
-    io:format("~p hostnames are reachable~n", [os:timestamp()]),
-    ok = is_nodes_ready(Nodes),
-    io:format("~p nodes are ready~n", [os:timestamp()]),
-
     connect_nodes(Nodes);
 
 main(_) ->
