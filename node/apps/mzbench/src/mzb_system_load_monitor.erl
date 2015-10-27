@@ -56,7 +56,9 @@ metric_names(Nodes) ->
                   metrics => [{metric_name("interval", N), gauge} || N <- Nodes]}}]},
      {group, "MZBench Internals", [
         {graph, #{title => "Mailbox messages",
-                  metrics => [{metric_name("message_queue", N), gauge} || N <- Nodes]}}
+                  metrics => [{metric_name("message_queue", N), gauge} || N <- Nodes]}},
+        {graph, #{title => "Erlang processes",
+                  metrics => [{metric_name("process_count", N), gauge} || N <- Nodes]}}
         ]}].
 
 %% gen_server callbacks
@@ -153,6 +155,8 @@ handle_info(trigger,
         end, {0, 0}, erlang:processes()),
 
     ok = mzb_metrics:notify({metric_name("message_queue"), gauge}, MailboxSize),
+
+    ok = mzb_metrics:notify({metric_name("process_count"), gauge}, erlang:system_info(process_count)),
 
     %lager:info("System load at ~p: cpu ~p, la ~p, ram ~p", [node(), Cpu, La1, AllocatedMem / TotalMem]),
     erlang:send_after(interval(), self(), trigger),
