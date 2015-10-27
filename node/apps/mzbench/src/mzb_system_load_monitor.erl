@@ -53,7 +53,11 @@ metric_names(Nodes) ->
 
         {graph, #{title => "Report interval",
                   units => "sec",
-                  metrics => [{metric_name("interval", N), gauge} || N <- Nodes]}}]}].
+                  metrics => [{metric_name("interval", N), gauge} || N <- Nodes]}}]},
+     {group, "MZBench Internals", [
+        {graph, #{title => "Mailbox messages",
+                  metrics => [{metric_name("message_queue", N), gauge} || N <- Nodes]}}
+        ]}].
 
 %% gen_server callbacks
 
@@ -136,6 +140,19 @@ handle_info(trigger,
         C:E -> lager:error("Exception while getting net stats: ~p~nStacktrace: ~p", [{C,E}, erlang:get_stacktrace()]),
         State
     end,
+
+    {MailboxSize, _} = lists:foldl(
+        fun (P, {Acc, N}) ->
+            QueueLen = try
+                element(2, erlang:process_info(P, message_queue_len))
+            catch
+                _:_ -> 0
+            end,
+            ((N rem 100) == 0) andalso timer:sleep(1),
+            {Acc + QueueLen, N + 1}
+        end, {0, 0}, erlang:processes()),
+
+    ok = mzb_metrics:notify({metric_name("message_queue"), gauge}, MailboxSize),
 
     %lager:info("System load at ~p: cpu ~p, la ~p, ram ~p", [node(), Cpu, La1, AllocatedMem / TotalMem]),
     erlang:send_after(interval(), self(), trigger),
