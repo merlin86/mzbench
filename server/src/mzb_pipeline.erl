@@ -20,7 +20,7 @@
 -record(state, {stage       = undefined :: undefined | {pid(), atom(), atom()},
                 module      = undefined :: undefined | module(),
                 ref         = undefined :: undefined | reference(),
-                unstoppableref= undefined :: undefined | reference(),
+                prefinal    = false :: boolean(),
                 user_state  = undefined :: term(),
                 active      = true :: boolean()}).
 
@@ -89,20 +89,24 @@ handle_call({workflow, stop}, _From, State = #state{active = false}) ->
 
 handle_call({workflow, stop}, _From, State = #state{stage = Stage, module = Module,
             user_state = UserState, ref = OldRef}) ->
-    UnstoppableRef = case Stage of
+    PreFinal = case Stage of
         {Pid, pipeline, S} ->
             case lists:member(S, proplists:get_value(unstoppable, Module:workflow_config(UserState), [])) of
                 false -> unlink(Pid),
                          exit(Pid, kill),
-                         undefined;
-                true -> OldRef
+                         false;
+                true -> true
             end;
-        _ -> undefined
+        _ -> false
     end,
-    NewRef = make_ref(),
-    gen_server:cast(self(), {workflow, start_phase, finalize, NewRef}),
+    NewRef = case PreFinal of
+        false -> TRef = make_ref(),
+                 gen_server:cast(self(), {workflow, start_phase, finalize, TRef}),
+                 TRef;
+        true -> OldRef
+    end,
     NewState = change_pipeline_status({final, stopped}, State),
-    {reply, ok, NewState#state{ref = NewRef, unstoppableref = UnstoppableRef}};
+    {reply, ok, NewState#state{ref = NewRef, prefinal = PreFinal}};
 
 handle_call({user_call, Msg}, From, #state{module = Module, user_state = UserState} = State) ->
     apply_user_state(Module:handle_call(Msg, From, UserState), State);
@@ -115,11 +119,17 @@ handle_cast({workflow, exception, Phase = finalize, Stage, Ref, {_C, E, ST} }, S
     NewState = change_pipeline_status({exception, Phase, Stage, E, ST}, State),
     {noreply, NewState#state{stage = undefined}};
 
-handle_cast({workflow, exception, Phase = pipeline, Stage, _Ref, {_C, E, ST} }, State = #state{ref = Ref}) ->
+handle_cast({workflow, exception, Phase = pipeline, Stage, Ref, {_C, E, ST} }, State = #state{ref = Ref}) ->
     gen_server:cast(self(), {workflow, start_phase, finalize, Ref}),
     NewState = change_pipeline_status({exception, Phase, Stage, E, ST}, State),
     NewState1 = change_pipeline_status({final, failed}, NewState),
     {noreply, NewState1#state{stage = undefined}};
+
+handle_cast({workflow, complete, _Phase, _Stage, Ref, Fn},
+            State = #state{prefinal = true, ref = Ref}) ->
+    NewState = migrate_state(Fn, State),
+    gen_server:cast(self(), {workflow, start_phase, finalize, Ref}),
+    {noreply, NewState#state{prefinal = false}};
 
 handle_cast({workflow, complete, Phase, Stage, Ref, Fn}, State = #state{ref = Ref}) ->
     NewState0 = migrate_state(Fn, State),
@@ -135,17 +145,8 @@ handle_cast({workflow, complete, Phase, Stage, Ref, Fn}, State = #state{ref = Re
 
     {noreply, NewState3};
 
-handle_cast({workflow, complete, _Phase, _Stage, Ref, Fn},
-            State = #state{unstoppableref = Ref, ref = NewRef}) ->
-    NewState = migrate_state(Fn, State),
-    gen_server:cast(self(), {workflow, start_phase, finalize, NewRef}),
-    {noreply, NewState#state{unstoppableref = undefined}};
-
-handle_cast({workflow, start_phase, Phase, Ref}, State = #state{ref = Ref, unstoppableref = undefined}) ->
+handle_cast({workflow, start_phase, Phase, Ref}, State = #state{ref = Ref}) ->
     handle_cast({workflow, next, Phase, undefined, Ref}, State);
-
-handle_cast({workflow, start_phase, finalize, _Ref}, State) ->
-    {noreply, State};
 
 handle_cast({workflow, next, PrevPhase, PrevStage, Ref}, State = #state{ref = Ref}) ->
     case next_stage(PrevPhase, PrevStage, State) of
