@@ -66,6 +66,12 @@ dispatch_info({update_bench, BenchInfo = #{id:= Id}}, State = #state{timeline_op
             {ok, State}
     end;
 
+dispatch_info({transmit_metric_names, Id, Guid, Names}, State = #state{currently_selected_bench = Id, current_transmission_guid = Guid}) ->
+    {reply, #{type => "METRIC_NAMES", bench => Id, guid => Guid, data => erlang:list_to_binary(Names)}, State};
+
+dispatch_info({transmit_metric_names, _Id, _Guid, _Names}, State = #state{}) ->
+    {ok, State};
+
 dispatch_info({metrics_batch_finished, Id, Guid}, State = #state{currently_selected_bench = Id, current_transmission_guid = Guid}) ->
     {reply, #{type => "METRICS_BATCH_FINISHED", bench => Id, guid => Guid}, State};
 
@@ -130,9 +136,10 @@ dispatch_request(#{<<"cmd">> := <<"set_bench_for_metrics_updates">>} = Cmd, Stat
     stop_reading_metrics(MetricsReaderRef),
     #{<<"bench">> := Id, <<"guid">> := Guid} = Cmd,
     Self = self(),
+    SendMetricNames = fun(Names) -> Self ! {transmit_metric_names, Id, Guid, Names} end,
     BatchFinishedFun = fun () -> Self ! {metrics_batch_finished, Id, Guid} end,
     SendMetricsFun = fun (Values) -> Self ! {transmit_metrics, Id, Guid, Values} end,
-    NewMetricsReaderRef = start_reading_metrics(Id, SendMetricsFun, BatchFinishedFun),
+    NewMetricsReaderRef = start_reading_metrics(Id, SendMetricNames, SendMetricsFun, BatchFinishedFun),
     {ok, State#state{currently_selected_bench = Id, current_transmission_guid = Guid, metrics_reader_ref = NewMetricsReaderRef}};
 
 dispatch_request(Cmd, State) ->
@@ -262,15 +269,15 @@ apply_boundaries({MinId, MaxId}, BenchInfos, Comparator) ->
                  end, BenchInfos).
 
 %% Metrics reading process
-start_reading_metrics(BenchId, SendFun, BatchFinishedFun) ->
-    erlang:spawn_monitor(fun() -> read_metrics_from_storage(BenchId, SendFun, BatchFinishedFun) end).
+start_reading_metrics(BenchId, SendNamesFun, SendFun, BatchFinishedFun) ->
+    erlang:spawn_monitor(fun() -> read_metrics_from_storage(BenchId, SendNamesFun, SendFun, BatchFinishedFun) end).
 
 stop_reading_metrics(undefined) -> ok;
 stop_reading_metrics({Pid, Ref}) ->
     erlang:demonitor(Ref),
     erlang:exit(Pid, aborted).
 
-read_metrics_from_storage(BenchId, SendFun, BatchFinishedFun) ->
+read_metrics_from_storage(BenchId, SendNamesFun, SendFun, BatchFinishedFun) ->
     #{config:= Config} = mzb_api_server:status(BenchId),
     #{metrics_compression:= Compression} = Config,
     Filename = mzb_api_bench:metrics_file(Config),
@@ -278,7 +285,12 @@ read_metrics_from_storage(BenchId, SendFun, BatchFinishedFun) ->
     FileReader = get_file_reader(Filename, Compression),
     try
         PollTimeout = application:get_env(mzbench_api, bench_poll_timeout, undefined),
-        perform_reading(BenchId, FileReader, SendFun, BatchFinishedFun, PollTimeout)
+        case FileReader(read_line) of
+            eof -> ok;
+            {ok, Metrics} ->
+                SendNamesFun(string:strip(Metrics, right, $\n)),
+                perform_reading(BenchId, FileReader, SendFun, BatchFinishedFun, PollTimeout)
+        end
     after
         FileReader(close)
     end.

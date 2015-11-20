@@ -10,7 +10,8 @@ let data = {
     guid: undefined,
     is_loaded: false,
     starting_date: undefined,
-    map: new Map([])
+    map: new Map([]),
+    metrics: undefined
 };
 
 function _clearData() {
@@ -28,16 +29,13 @@ function _updateData(rawData) {
 
 function _applyUpdate(update) {
     const tokens = update.split("\t");
-    
-    if(tokens.length >= 3) {
-        const date = Number.parseInt(tokens[0]);
-        const metric = tokens[1];
-        const value = Number.parseFloat(tokens[2]);
-        
-        if(!Number.isNaN(date) && !Number.isNaN(value)) {
-            _addObservation(metric, { date: date, value: value });
+    const date = Number.parseInt(tokens[0]);
+    const values = data.metrics.map((metric, i) => {
+        const val = Number.parseFloat(tokens[i+1]);
+        if(!Number.isNaN(date) && !Number.isNaN(val)) {
+            _addObservation(metric, { date: date, value: val});
         }
-    }
+    });
 }
 
 function _addObservation(metric, observation) {
@@ -115,13 +113,19 @@ class MetricsStore extends EventEmitter {
             return [];
         }
     }
-    
+
     getMetricMaxDate(metric) {
         if(data.map.has(metric)) {
             let m = data.map.get(metric);
             return m[m.length - 1]["date"];
         } else {
             return 0;
+        }
+    }
+
+    setMetrics(benchId, guid, rawData) {
+        if(data.benchId == benchId && data.guid == guid) {
+            data.metrics = rawData.split("\t");
         }
     }
 };
@@ -131,16 +135,20 @@ export default _MetricsStore;
 
 _MetricsStore.dispatchToken = Dispatcher.register((action) => {
     switch(action.type) {
+        case ActionTypes.METRIC_NAMES:
+            _MetricsStore.setMetrics(action.bench, action.guid, action.data);
+            break;
+
         case ActionTypes.METRICS_UPDATE:
             _MetricsStore.updateMetricData(action.bench, action.guid, action.data);
             _MetricsStore.emitChange();
             break;
-    
+
         case ActionTypes.METRICS_BATCH_FINISHED:
             _MetricsStore.metricsBatchFinished(action.bench, action.guid);
             _MetricsStore.emitChange();
             break;
-    
+
         default:
     }
 });
