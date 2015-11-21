@@ -219,10 +219,13 @@ install_package(Hosts, PackageName, InstallSpec, InstallationDir, Config, Logger
             mzb_string:format("~p.~p.~p", [A, B, C])
     end,
     #{user_name:= User} = Config,
-    HostsAndOSs = mzb_lists:pmap(fun (Host) -> {Host, get_host_system_id(User, Host, Logger)} end, Hosts),
     PackagesDir = mzb_api_paths:tgz_packages_dir(),
+    HostsAndOSs = mzb_lists:pmap(fun (Host) -> {Host, get_host_system_id(User, Host, Logger)} end, Hosts),
     ok = filelib:ensure_dir(PackagesDir ++ "/"),
-    UniqueOSs = lists:usort([OS || {_Host, OS} <- HostsAndOSs]),
+    UniqueOSs = case InstallSpec of
+        #git_install_spec{build = "local"} -> ["noarch"];
+        _ -> lists:usort([OS || {_Host, OS} <- HostsAndOSs])
+    end,
     NeededTarballs =
         [{OS, filename:join(PackagesDir, mzb_string:format("~s-~s-~s.tgz", [PackageName, Version, OS]))}
         || OS <- UniqueOSs],
@@ -230,7 +233,12 @@ install_package(Hosts, PackageName, InstallSpec, InstallationDir, Config, Logger
     Logger(info, "Missing tarballs: ~p", [MissingTarballs]),
     OSsWithMissingTarballs = [OS || {OS, _} <- MissingTarballs],
 
-    _ = mzb_lists:pmap(fun({Host, OS}) ->
+    _ = case OSsWithMissingTarballs of
+        ["noarch"] -> Logger(info, "Building package ~s on api server", [PackageName]),
+                      [TarballPath] = [T || {_, T} <- MissingTarballs],
+                      build_package_on_host("localhost", User, TarballPath, InstallSpec, Logger);
+
+        _ -> mzb_lists:pmap(fun({Host, OS}) ->
             {OS, LocalTarballPath} = lists:keyfind(OS, 1, NeededTarballs),
             RemoteTarballPath = mzb_file:tmp_filename() ++ ".tgz",
             ExtractDir = mzb_file:tmp_filename(),
@@ -262,7 +270,8 @@ install_package(Hosts, PackageName, InstallSpec, InstallationDir, Config, Logger
                 _ = mzb_subprocess:remote_cmd(User, [Host], RemoveCmd, [], Logger)
             end
         end,
-        HostsAndOSs),
+        HostsAndOSs)
+    end,
     ok.
 
 build_package_on_host(Host, User, RemoteTarballPath, InstallSpec, Logger) ->
