@@ -2,11 +2,15 @@ import moment from 'moment';
 import React from 'react';
 import MetricsStore from '../stores/MetricsStore';
 
+const GRAPH_RENDERING_INTERVAL = 8;       // sec
 const RUNNING_GRAPH_SHOWED_DURATION = 10; // minutes
 
 class Graph extends React.Component {
     constructor(props) {
         super(props);
+        this.updateTimer = undefined;
+        this.is_first_update = true;
+        
         this.previously_running = undefined;
         this.updatesCounter = 0;
         this.state = this._resolveState();
@@ -18,9 +22,14 @@ class Graph extends React.Component {
         this.previously_running = this.props.is_running;
         MetricsStore.addSubscription(this.props.targets);
         this._renderGraph();
+        
+        this.updateTimer = window.setInterval(this._updateGraph.bind(this), GRAPH_RENDERING_INTERVAL*1000);
     }
     
     componentWillUnmount() {
+        if(this.updateTimer) {
+            window.clearInterval(this.updateTimer);
+        }
         MetricsStore.off(this._onChange);
     }
     
@@ -33,8 +42,11 @@ class Graph extends React.Component {
             // Happens in fullscreen mode.
             return true;
         } else {
-            // Graph should probably be updated, but not the DOM.
-            setTimeout(this._updateGraph.bind(this), 1);
+            // Graph should be updated the first time the data has arrived.
+            if(nextState.isLoaded && this.is_first_update) {
+                setTimeout(this._updateGraph.bind(this), 1);
+                this.is_first_update = false;
+            }
             return false;
         }
     }
@@ -194,7 +206,7 @@ class Graph extends React.Component {
                     if (dataset.length > 0) return false;
                     else return prev;
                 }, true);
-            graph_options.data = isEmpty ? [[{date: 0, value: 0}]] : this.state.data;
+            graph_options.data = isEmpty ? [[{date: 0, value: 0, min: 0, max: 0}]] : this.state.data;
             graph_options.legend = this.props.targets;
             
             graph_options.target = document.getElementById(this._graphDOMId());
@@ -219,8 +231,6 @@ class Graph extends React.Component {
     }
 
     _updateGraph() {
-        if (!this.state.isLoaded) return;
-
         if (this.previously_running != this.props.is_running) {
             this._renderGraph();
             this.previously_running = this.props.is_running;
@@ -254,8 +264,11 @@ class Graph extends React.Component {
             });
 
         const isLoaded = metricBatchs.reduce((prev, v) => {
-                    if (v <= 0) return false;
-                    else return prev;
+                    if (v <= 0) {
+                        return false;
+                    } else {
+                        return prev;
+                    }
                 }, true);
 
         return {
